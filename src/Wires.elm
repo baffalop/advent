@@ -47,22 +47,6 @@ toVector move =
             Right -count
 
 
-unpackMove : Move -> ( Direction, Int )
-unpackMove move =
-    case move of
-        U count ->
-            ( Up, count )
-
-        D count ->
-            ( Up, -count )
-
-        R count ->
-            ( Right, count )
-
-        L count ->
-            ( Right, -count )
-
-
 addVector : Coord -> Vector -> Coord
 addVector origin vector =
     case vector of
@@ -71,49 +55,6 @@ addVector origin vector =
 
         Up count ->
             Tuple.mapSecond ((+) count)
-
-
-addMove : Move -> Coord -> Coord
-addMove move origin =
-    let
-        vector =
-            case unpackMove move of
-                ( Right, x ) ->
-                    ( x, 0 )
-
-                ( Up, y ) ->
-                    ( 0, y )
-    in
-    addCoord origin vector
-
-
-expandMove : Move -> Set Coord
-expandMove move =
-    let
-        unpackedMove =
-            unpackMove move
-
-        moveCount =
-            Tuple.second unpackedMove
-
-        range =
-            if moveCount > 0 then
-                List.range 1 moveCount
-
-            else
-                List.range moveCount -1
-                    |> List.reverse
-
-        toCoord =
-            case Tuple.first unpackedMove of
-                Up ->
-                    Tuple.pair 0
-
-                Right ->
-                    \x -> ( x, 0 )
-    in
-    List.map toCoord range
-        |> Set.fromList
 
 
 expandMoves : List Move -> Set Coord
