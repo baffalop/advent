@@ -146,7 +146,7 @@ findCrossing e1 e2 =
                 between yh ( yv, yv + up )
                     && between xv ( xh, xh + right )
             then
-                Just ( ( xh, yv ), distance )
+                Just ( ( xv, yh ), distance )
 
             else
                 Nothing
@@ -196,9 +196,10 @@ closestCrossing measure moves1 moves2 =
             Nothing
 
         Just crossing ->
-            { coord = Tuple.first crossing
-            , distance = measure crossing
-            }
+            Just
+                { coord = Tuple.first crossing
+                , distance = measure crossing
+                }
 
 
 closestManhattanCrossing : List Move -> List Move -> Maybe { coord : Coord, distance : Int }

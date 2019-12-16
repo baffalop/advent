@@ -1,5 +1,7 @@
 module Wires.Input exposing (input1, input2)
 
+import Wires.Solution exposing (Move(..))
+
 
 input1 =
     [ R 1003
