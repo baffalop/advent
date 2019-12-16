@@ -1,4 +1,4 @@
-module Wires.Solution exposing (Move(..), composeMoves, crossings)
+module Wires.Solution exposing (Move(..), closestManhattanCrossing, closestWireCrossing, composeMoves, findCrossings)
 
 import Set exposing (Set)
 
@@ -90,21 +90,6 @@ composeMoves moves =
         |> vectorsToEdges ( 0, 0 ) 0
 
 
-filterMaybes : List (Maybe a) -> List a
-filterMaybes list =
-    case list of
-        [] ->
-            []
-
-        x :: xs ->
-            case x of
-                Nothing ->
-                    filterMaybes xs
-
-                Just a ->
-                    a :: filterMaybes xs
-
-
 sortPerpendicular : Edge -> Edge -> Maybe ( Edge, Edge )
 sortPerpendicular e1 e2 =
     let
@@ -167,8 +152,23 @@ findCrossing e1 e2 =
                 Nothing
 
 
-crossings : List Move -> List Move -> List ( Coord, Int )
-crossings moves1 moves2 =
+filterMaybes : List (Maybe a) -> List a
+filterMaybes list =
+    case list of
+        [] ->
+            []
+
+        x :: xs ->
+            case x of
+                Nothing ->
+                    filterMaybes xs
+
+                Just a ->
+                    a :: filterMaybes xs
+
+
+findCrossings : List Move -> List Move -> List ( Coord, Int )
+findCrossings moves1 moves2 =
     let
         edges1 =
             composeMoves moves1
@@ -179,3 +179,37 @@ crossings moves1 moves2 =
     List.concatMap (\e -> List.map (findCrossing e) edges2) edges1
         |> filterMaybes
         |> List.sortBy Tuple.second
+
+
+closestCrossing : (( Coord, Int ) -> Int) -> List Move -> List Move -> Maybe { coord : Coord, distance : Int }
+closestCrossing measure moves1 moves2 =
+    let
+        crossings =
+            findCrossings moves1 moves2
+                |> List.sortBy measure
+
+        closest =
+            List.head crossings
+    in
+    case closest of
+        Nothing ->
+            Nothing
+
+        Just crossing ->
+            { coord = Tuple.first crossing
+            , distance = measure crossing
+            }
+
+
+closestManhattanCrossing : List Move -> List Move -> Maybe { coord : Coord, distance : Int }
+closestManhattanCrossing =
+    let
+        manhattanDistance =
+            \( x, y ) -> abs x + abs y
+    in
+    closestCrossing (Tuple.first >> manhattanDistance)
+
+
+closestWireCrossing : List Move -> List Move -> Maybe { coord : Coord, distance : Int }
+closestWireCrossing =
+    closestCrossing Tuple.second
