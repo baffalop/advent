@@ -82,27 +82,6 @@ fixMonotonicity input =
                     head ++ List.repeat tailLength n
 
 
-increment : List Int -> List Int
-increment input =
-    let
-        lsd =
-            littleTail input
-
-        rest =
-            bigHead input
-    in
-    case lsd of
-        Nothing ->
-            [ 1 ]
-
-        Just n ->
-            if n + 1 > 9 then
-                increment rest ++ [ 0 ]
-
-            else
-                rest ++ [ n + 1 ]
-
-
 hasRepeats : List Int -> Bool
 hasRepeats input =
     case input of
