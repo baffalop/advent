@@ -69,10 +69,10 @@ fixMonotonicity input =
                     List.take pos input
 
                 lastN =
-                    List.reverse head |> List.head
+                    littleTail head
 
                 tailLength =
-                    List.drop pos input |> List.length
+                    List.length input - pos
             in
             case lastN of
                 Nothing ->
@@ -120,40 +120,27 @@ hasRepeats input =
                 hasRepeats (y :: ys)
 
 
-greaterThan : List Int -> List Int -> Bool
-greaterThan list1 list2 =
-    let
-        length1 =
-            List.length list1
-
-        length2 =
-            List.length list2
-    in
-    if length1 > length2 then
-        True
-
-    else if length2 > length1 then
-        False
-
-    else
-        --todo
-        False
-
-
-monotonicListsInRange : List Int -> List Int -> List (List Int)
-monotonicListsInRange lower upper =
-    if implode lower > implode upper then
-        []
-
-    else
-        let
-            nextMonotonic =
-                fixMonotonicity lower
-        in
-        nextMonotonic :: monotonicListsInRange (increment nextMonotonic) upper
-
-
 monotonicRange : Int -> Int -> List Int
 monotonicRange lower upper =
-    monotonicListsInRange (explode lower) (explode upper)
-        |> List.map implode
+    let
+        asList =
+            explode lower
+
+        nextMonotonic =
+            fixMonotonicity asList
+
+        nextInt =
+            if asList == nextMonotonic then
+                lower
+
+            else
+                implode nextMonotonic
+    in
+    if nextInt > upper then
+        []
+
+    else if hasRepeats nextMonotonic then
+        nextInt :: monotonicRange (nextInt + 1) upper
+
+    else
+        monotonicRange (nextInt + 1) upper
