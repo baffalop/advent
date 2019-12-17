@@ -1,17 +1,17 @@
-module Password.Solution exposing (..)
+module Password.Solution exposing (explodeInt, implodeInt, passwordsInRange)
 
 
-explode : Int -> List Int
-explode n =
+explodeInt : Int -> List Int
+explodeInt n =
     if n < 10 then
         [ n ]
 
     else
-        explode (n // 10) ++ [ modBy 10 n ]
+        explodeInt (n // 10) ++ [ modBy 10 n ]
 
 
-implode : List Int -> Int
-implode input =
+implodeInt : List Int -> Int
+implodeInt input =
     case input of
         [] ->
             0
@@ -21,7 +21,7 @@ implode input =
                 mult =
                     10 ^ List.length ns
             in
-            (n * mult) + implode ns
+            (n * mult) + implodeInt ns
 
 
 bigHead : List a -> List a
@@ -112,11 +112,11 @@ hasRepeats input =
             hasRepeats (List.drop n input)
 
 
-monotonicRange : Int -> Int -> List Int
-monotonicRange lower upper =
+passwordsInRange : Int -> Int -> List Int
+passwordsInRange lower upper =
     let
         asList =
-            explode lower
+            explodeInt lower
 
         nextMonotonic =
             fixMonotonicity asList
@@ -126,13 +126,13 @@ monotonicRange lower upper =
                 lower
 
             else
-                implode nextMonotonic
+                implodeInt nextMonotonic
     in
     if nextInt > upper then
         []
 
     else if hasRepeats nextMonotonic then
-        nextInt :: monotonicRange (nextInt + 1) upper
+        nextInt :: passwordsInRange (nextInt + 1) upper
 
     else
-        monotonicRange (nextInt + 1) upper
+        passwordsInRange (nextInt + 1) upper
