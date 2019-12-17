@@ -1,6 +1,6 @@
 # Advent
 
-[Advent of Code](https://adventofcode.com/) is an advent calendar of coding challenges. I was feeling particularly festive, so I used this as an opportunity to learn Elf---I mean... Elm.
+[Advent of Code](https://adventofcode.com/) is an advent calendar of coding challenges. I was feeling particularly festive, so I used this as an opportunity to learn Elf – I mean... Elm.
 
 My first dive into pure functional programming since obligatory uni Haskell 10 years ago.
 
