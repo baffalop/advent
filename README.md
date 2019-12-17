@@ -6,7 +6,7 @@ My first dive into pure functional programming since obligatory uni Haskell 10 y
 
 ## Structure
 
-These modules are meant to be loaded into the Elm REPL. I should document which function is intended to be run to solve each problem...
+These modules are meant to be loaded into the Elm REPL. I should document which function is intended to be run to solve each problem... but it's generally somewhat clear from what the modules expose.
 
 * **Day 1: Tyranny of the Rocket Equation** _I hadn't decided to learn Elm at this point so it's not here_
 * **Day 2: 1202 Program Alarm** `src/Intcodes/`
