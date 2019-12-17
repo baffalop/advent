@@ -82,21 +82,34 @@ fixMonotonicity input =
                     head ++ List.repeat tailLength n
 
 
-hasRepeats : List Int -> Bool
-hasRepeats input =
+countFirstDigit : List Int -> Int
+countFirstDigit input =
     case input of
         [] ->
-            False
+            0
 
         x :: [] ->
-            False
+            1
 
         x :: (y :: ys) ->
-            if x == y then
-                True
+            if x /= y then
+                1
 
             else
-                hasRepeats (y :: ys)
+                1 + countFirstDigit (y :: ys)
+
+
+hasRepeats : List Int -> Bool
+hasRepeats input =
+    case countFirstDigit input of
+        0 ->
+            False
+
+        2 ->
+            True
+
+        n ->
+            hasRepeats (List.drop n input)
 
 
 monotonicRange : Int -> Int -> List Int
