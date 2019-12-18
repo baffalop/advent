@@ -30,11 +30,6 @@ type alias Edge =
     }
 
 
-addCoord : Coord -> Coord -> Coord
-addCoord ( x, y ) =
-    Tuple.mapBoth ((+) x) ((+) y)
-
-
 toVector : Move -> Vector
 toVector move =
     case move of
