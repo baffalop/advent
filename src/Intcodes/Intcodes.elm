@@ -1,10 +1,6 @@
-module Intcodes exposing (Intcodes, OpResult(..), process)
+module Intcodes.Intcodes exposing (Intcodes, OpResult(..), process)
 
-import Array as A
-
-
-type alias Array a =
-    A.Array a
+import Array exposing (Array)
 
 
 type Opcode
@@ -44,7 +40,7 @@ type OpResult
 
 doCode : Intcodes -> OpResult
 doCode codes =
-    case A.get codes.pos codes.ar of
+    case Array.get codes.pos codes.ar of
         Nothing ->
             Fail "Opcode out of bounds" codes
 
@@ -54,7 +50,7 @@ doCode codes =
                     Fail ("Unrecognised code " ++ String.fromInt code) codes
 
                 Halt ->
-                    Done (A.toList codes.ar)
+                    Done (Array.toList codes.ar)
 
                 Add ->
                     doOp (+) codes
@@ -67,7 +63,7 @@ doOp : (Int -> Int -> Int) -> Intcodes -> OpResult
 doOp op codes =
     let
         get =
-            \i -> A.get i codes.ar
+            \i -> Array.get i codes.ar
 
         firstTarget =
             get (codes.pos + 1)
@@ -97,7 +93,7 @@ placeResult : Int -> Intcodes -> OpResult
 placeResult result codes =
     let
         get =
-            \i -> A.get i codes.ar
+            \i -> Array.get i codes.ar
     in
     case get (codes.pos + 3) of
         Nothing ->
@@ -110,7 +106,7 @@ placeResult result codes =
 
                 Just _ ->
                     Next
-                        { ar = A.set place result codes.ar
+                        { ar = Array.set place result codes.ar
                         , pos = codes.pos + 4
                         }
 
@@ -132,6 +128,6 @@ doAllCodes codes =
 process : List Int -> OpResult
 process input =
     doAllCodes
-        { ar = A.fromList input
+        { ar = Array.fromList input
         , pos = 0
         }
