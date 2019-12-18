@@ -12,16 +12,17 @@ explodeInt n =
 
 implodeInt : List Int -> Int
 implodeInt input =
-    case input of
-        [] ->
-            0
-
-        n :: ns ->
+    List.foldl
+        (\digit ( n, len ) ->
             let
                 mult =
-                    10 ^ List.length ns
+                    10 ^ (len - 1)
             in
-            (n * mult) + implodeInt ns
+            ( n + (digit * mult), len - 1 )
+        )
+        ( 0, List.length input )
+        input
+        |> Tuple.first
 
 
 bigHead : List a -> List a
