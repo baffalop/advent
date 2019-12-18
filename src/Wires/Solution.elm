@@ -178,7 +178,6 @@ findCrossings moves1 moves2 =
     in
     List.concatMap (\e -> List.map (findCrossing e) edges2) edges1
         |> filterMaybes
-        |> List.sortBy Tuple.second
 
 
 closestCrossing : (( Coord, Int ) -> Int) -> List Move -> List Move -> Maybe { coord : Coord, distance : Int }
@@ -191,15 +190,13 @@ closestCrossing measure moves1 moves2 =
         closest =
             List.head crossings
     in
-    case closest of
-        Nothing ->
-            Nothing
-
-        Just crossing ->
-            Just
-                { coord = Tuple.first crossing
-                , distance = measure crossing
-                }
+    Maybe.map
+        (\crossing ->
+            { coord = Tuple.first crossing
+            , distance = measure crossing
+            }
+        )
+        closest
 
 
 closestManhattanCrossing : List Move -> List Move -> Maybe { coord : Coord, distance : Int }
