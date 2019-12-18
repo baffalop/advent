@@ -121,7 +121,7 @@ doAllCodes codes =
         Next resultCodes ->
             doAllCodes resultCodes
 
-        otherwise ->
+        _ ->
             result
 
 
