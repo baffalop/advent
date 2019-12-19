@@ -175,10 +175,10 @@ doNextOpcode mem =
                 Output mode ->
                     doOutput mode mem
 
-                JumpIfFalse modes ->
+                JumpIfTrue modes ->
                     jumpIf modes identity mem
 
-                JumpIfTrue modes ->
+                JumpIfFalse modes ->
                     jumpIf modes not mem
 
                 LessThan modes ->
