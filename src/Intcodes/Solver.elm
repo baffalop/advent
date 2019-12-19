@@ -1,7 +1,7 @@
-module Solve exposing (permute, tryAll)
+module Intcodes.Solver exposing (permute, tryAll)
 
-import Intcodes exposing (Intcodes, OpResult(..), process)
-import Program exposing (program)
+import Intcodes.Intcodes exposing (OpResult(..), process)
+import Intcodes.Program exposing (program)
 
 
 run : ( Int, Int ) -> OpResult

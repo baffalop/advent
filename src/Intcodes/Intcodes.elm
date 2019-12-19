@@ -1,4 +1,4 @@
-module Intcodes.Intcodes exposing (process)
+module Intcodes.Intcodes exposing (OpResult(..), process)
 
 import Array exposing (Array)
 
