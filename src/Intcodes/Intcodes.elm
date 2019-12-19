@@ -4,26 +4,89 @@ import Array exposing (Array)
 
 
 type Opcode
-    = Add
-    | Mult
+    = Add ( Mode, Mode )
+    | Mult ( Mode, Mode )
+    | Input Mode
+    | Output Mode
     | Halt
     | Unrecognised
 
 
-type alias Intcodes =
-    { ar : Array Int
-    , pos : Int
-    }
+type Mode
+    = Position
+    | Immediate
 
 
-readCode : Int -> Opcode
-readCode code =
-    case code of
+readMode : Int -> Maybe ( Mode, Int )
+readMode n =
+    let
+        next =
+            n // 10
+    in
+    case modBy 10 n of
+        0 ->
+            Just ( Position, next )
+
         1 ->
-            Add
+            Just ( Immediate, next )
+
+        _ ->
+            Nothing
+
+
+read2Modes : Int -> Maybe ( Int, Int )
+read2Modes n =
+    let
+        ( first, remainder ) =
+            readMode n
+
+        ( second, _ ) =
+            Maybe.andThen readMode remainder
+    in
+    Maybe.map2 Tuple.pair first second
+
+
+readOpcode : Int -> Opcode
+readOpcode code =
+    let
+        op =
+            modBy 100 code
+
+        modesDigits =
+            code // 100
+    in
+    case op of
+        1 ->
+            case read2Modes modesDigits of
+                Nothing ->
+                    Unrecognised
+
+                Just modes ->
+                    Add modes
 
         2 ->
-            Mult
+            case read2Modes modesDigits of
+                Nothing ->
+                    Unrecognised
+
+                Just modes ->
+                    Mult modes
+
+        3 ->
+            case readMode modesDigits of
+                Nothing ->
+                    Unrecognised
+
+                Just ( mode, _ ) ->
+                    Input mode
+
+        4 ->
+            case readMode modesDigits of
+                Nothing ->
+                    Unrecognised
+
+                Just ( mode, _ ) ->
+                    Output mode
 
         99 ->
             Halt
@@ -32,102 +95,104 @@ readCode code =
             Unrecognised
 
 
+type alias Memory =
+    { ar : Array Int
+    , pos : Int
+    , executing : Maybe Opcode
+    , param : Int
+    , registers : List Int
+    }
+
+
+initMemory : List Int -> Memory
+initMemory input =
+    { ar = Array.fromList input
+    , pos = 0
+    }
+
+
 type OpResult
     = Done (List Int)
-    | Next Intcodes
-    | Fail String Intcodes
+    | Fail String Memory
 
 
-doCode : Intcodes -> OpResult
-doCode codes =
-    case Array.get codes.pos codes.ar of
+doNextOpcode : Memory -> OpResult
+doNextOpcode mem =
+    case Array.get mem.pos mem.ar of
         Nothing ->
-            Fail "Opcode out of bounds" codes
+            Fail "Opcode out of bounds" mem
 
         Just code ->
-            case readCode code of
+            case readOpcode code of
                 Unrecognised ->
-                    Fail ("Unrecognised code " ++ String.fromInt code) codes
+                    Fail "Unrecognised code" mem
 
                 Halt ->
-                    Done (Array.toList codes.ar)
+                    Done (Array.toList mem.ar)
 
-                Add ->
-                    doOp (+) codes
+                Add modes ->
+                    doArithmetic (+) modes mem
 
-                Mult ->
-                    doOp (*) codes
+                Mult modes ->
+                    doArithmetic (*) modes mem
 
 
-doOp : (Int -> Int -> Int) -> Intcodes -> OpResult
-doOp op codes =
+getValue : Mode -> Int -> Memory -> Maybe Int
+getValue mode offset { ar, pos } =
     let
-        get =
-            \i -> Array.get i codes.ar
-
-        firstTarget =
-            get (codes.pos + 1)
-
-        secondTarget =
-            get (codes.pos + 2)
-
-        first =
-            Maybe.andThen get firstTarget
-
-        second =
-            Maybe.andThen get secondTarget
+        immediateValue =
+            Array.get (pos + offset) ar
     in
-    if firstTarget == Nothing || secondTarget == Nothing then
-        Fail "Operand target out of bounds" codes
+    case mode of
+        Immediate ->
+            immediateValue
 
-    else
-        case Maybe.map2 op first second of
-            Nothing ->
-                Fail "Operand out of bounds" codes
-
-            Just result ->
-                placeResult result codes
+        Position ->
+            Maybe.andThen (\i -> Array.get i ar) immediateValue
 
 
-placeResult : Int -> Intcodes -> OpResult
-placeResult result codes =
+setValue : Int -> Int -> Memory -> Maybe (Array Int)
+setValue offset val { ar, pos } =
     let
-        get =
-            \i -> Array.get i codes.ar
+        checkBeforeSetting =
+            \i ->
+                Array.get i ar
+                    |> Maybe.andThen
+                        (always <|
+                            { ar = Array.set i val ar
+                            , pos = pos + offset + 1
+                            }
+                        )
     in
-    case get (codes.pos + 3) of
+    Array.get (pos + offset) ar
+        |> Maybe.andThen checkBeforeSetting
+
+
+doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode, Mode ) -> Memory -> OpResult
+doArithmetic op ( mode1, mode2 ) mem =
+    let
+        arg1 =
+            getValue mode1 1 mem
+
+        arg2 =
+            getValue mode2 2 mem
+    in
+    case Maybe.map2 op arg1 arg2 of
         Nothing ->
-            Fail "Place target out of bounds" codes
+            Fail "Operand out of bounds" mem
 
-        Just place ->
-            case get place of
+        Just result ->
+            case setValue 3 mem of
                 Nothing ->
-                    Fail "Place out of bounds" codes
+                    Fail "Output out of bounds" mem
 
-                Just _ ->
-                    Next
-                        { ar = Array.set place result codes.ar
-                        , pos = codes.pos + 4
+                Just newArray ->
+                    doNextOpcode
+                        { ar = newArray
+                        , pos = mem.pos + 4
                         }
 
 
-doAllCodes : Intcodes -> OpResult
-doAllCodes codes =
-    let
-        result =
-            doCode codes
-    in
-    case result of
-        Next resultCodes ->
-            doAllCodes resultCodes
-
-        _ ->
-            result
-
-
 process : List Int -> OpResult
-process input =
-    doAllCodes
-        { ar = Array.fromList input
-        , pos = 0
-        }
+process =
+    initMemory |> doNextOpcode
