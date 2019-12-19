@@ -8,6 +8,10 @@ type Opcode
     | Mult ( Mode, Mode )
     | Input
     | Output Mode
+    | JumpIfTrue ( Mode, Mode )
+    | JumpIfFalse ( Mode, Mode )
+    | LessThan ( Mode, Mode )
+    | Equals ( Mode, Mode )
     | Halt
     | Unrecognised
 
@@ -55,34 +59,49 @@ readOpcode code =
 
         modesDigits =
             code // 100
+
+        with1Mode =
+            \construct ->
+                case readMode modesDigits of
+                    Nothing ->
+                        Unrecognised
+
+                    Just ( mode, _ ) ->
+                        construct mode
+
+        with2Modes =
+            \construct ->
+                case read2Modes modesDigits of
+                    Nothing ->
+                        Unrecognised
+
+                    Just modes ->
+                        construct modes
     in
     case op of
         1 ->
-            case read2Modes modesDigits of
-                Nothing ->
-                    Unrecognised
-
-                Just modes ->
-                    Add modes
+            with2Modes (\m -> Add m)
 
         2 ->
-            case read2Modes modesDigits of
-                Nothing ->
-                    Unrecognised
-
-                Just modes ->
-                    Mult modes
+            with2Modes (\m -> Mult m)
 
         3 ->
             Input
 
         4 ->
-            case readMode modesDigits of
-                Nothing ->
-                    Unrecognised
+            with1Mode (\m -> Output m)
 
-                Just ( mode, _ ) ->
-                    Output mode
+        5 ->
+            with2Modes (\m -> JumpIfTrue m)
+
+        6 ->
+            with2Modes (\m -> JumpIfFalse m)
+
+        7 ->
+            with2Modes (\m -> LessThan m)
+
+        8 ->
+            with2Modes (\m -> Equals m)
 
         99 ->
             Halt
@@ -136,7 +155,7 @@ doNextOpcode mem =
         Just code ->
             case readOpcode code of
                 Unrecognised ->
-                    Fail "Unrecognised code" mem
+                    Fail ("Unrecognised code " ++ String.fromInt code) mem
 
                 Halt ->
                     Done
@@ -155,6 +174,36 @@ doNextOpcode mem =
 
                 Output mode ->
                     doOutput mode mem
+
+                JumpIfFalse modes ->
+                    jumpIf modes identity mem
+
+                JumpIfTrue modes ->
+                    jumpIf modes not mem
+
+                LessThan modes ->
+                    doArithmetic
+                        (\x y ->
+                            if x < y then
+                                1
+
+                            else
+                                0
+                        )
+                        modes
+                        mem
+
+                Equals modes ->
+                    doArithmetic
+                        (\x y ->
+                            if x == y then
+                                1
+
+                            else
+                                0
+                        )
+                        modes
+                        mem
 
 
 doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode ) -> Memory -> OpResult
@@ -229,6 +278,25 @@ doOutput mode mem =
                     | outputs = mem.outputs ++ [ value ]
                     , pos = mem.pos + 2
                 }
+
+
+jumpIf : ( Mode, Mode ) -> (Bool -> Bool) -> Memory -> OpResult
+jumpIf ( mode1, mode2 ) func mem =
+    case getValue mode1 1 mem of
+        Nothing ->
+            Fail "Argument out of bounds" mem
+
+        Just value ->
+            if func (value /= 0) then
+                case getValue mode2 2 mem of
+                    Nothing ->
+                        Fail "Argument out of bounds" mem
+
+                    Just v ->
+                        doNextOpcode { mem | pos = v }
+
+            else
+                doNextOpcode { mem | pos = mem.pos + 3 }
 
 
 process : List Int -> List Int -> OpResult
