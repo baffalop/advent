@@ -1,4 +1,4 @@
-module Intcodes.Intcodes exposing (Intcodes, OpResult(..), process)
+module Intcodes.Intcodes exposing (process)
 
 import Array exposing (Array)
 
@@ -6,7 +6,7 @@ import Array exposing (Array)
 type Opcode
     = Add ( Mode, Mode )
     | Mult ( Mode, Mode )
-    | Input Mode
+    | Input
     | Output Mode
     | Halt
     | Unrecognised
@@ -34,16 +34,17 @@ readMode n =
             Nothing
 
 
-read2Modes : Int -> Maybe ( Int, Int )
+read2Modes : Int -> Maybe ( Mode, Mode )
 read2Modes n =
     let
-        ( first, remainder ) =
+        mode1 =
             readMode n
 
-        ( second, _ ) =
-            Maybe.andThen readMode remainder
+        mode2 =
+            Maybe.andThen (Tuple.second >> readMode) mode1
     in
-    Maybe.map2 Tuple.pair first second
+    Maybe.map2 Tuple.pair mode1 mode2
+        |> Maybe.map (Tuple.mapBoth Tuple.first Tuple.first)
 
 
 readOpcode : Int -> Opcode
@@ -73,12 +74,7 @@ readOpcode code =
                     Mult modes
 
         3 ->
-            case readMode modesDigits of
-                Nothing ->
-                    Unrecognised
-
-                Just ( mode, _ ) ->
-                    Input mode
+            Input
 
         4 ->
             case readMode modesDigits of
@@ -98,43 +94,23 @@ readOpcode code =
 type alias Memory =
     { ar : Array Int
     , pos : Int
-    , executing : Maybe Opcode
-    , param : Int
-    , registers : List Int
+    , inputs : List Int
+    , outputs : List Int
     }
 
 
-initMemory : List Int -> Memory
-initMemory input =
-    { ar = Array.fromList input
+initMemory : List Int -> List Int -> Memory
+initMemory program inputs =
+    { ar = Array.fromList program
     , pos = 0
+    , inputs = inputs
+    , outputs = []
     }
 
 
 type OpResult
-    = Done (List Int)
+    = Done { outputs : List Int, finalState : List Int }
     | Fail String Memory
-
-
-doNextOpcode : Memory -> OpResult
-doNextOpcode mem =
-    case Array.get mem.pos mem.ar of
-        Nothing ->
-            Fail "Opcode out of bounds" mem
-
-        Just code ->
-            case readOpcode code of
-                Unrecognised ->
-                    Fail "Unrecognised code" mem
-
-                Halt ->
-                    Done (Array.toList mem.ar)
-
-                Add modes ->
-                    doArithmetic (+) modes mem
-
-                Mult modes ->
-                    doArithmetic (*) modes mem
 
 
 getValue : Mode -> Int -> Memory -> Maybe Int
@@ -151,24 +127,37 @@ getValue mode offset { ar, pos } =
             Maybe.andThen (\i -> Array.get i ar) immediateValue
 
 
-setValue : Int -> Int -> Memory -> Maybe (Array Int)
-setValue offset val { ar, pos } =
-    let
-        checkBeforeSetting =
-            \i ->
-                Array.get i ar
-                    |> Maybe.andThen
-                        (always <|
-                            { ar = Array.set i val ar
-                            , pos = pos + offset + 1
-                            }
-                        )
-    in
-    Array.get (pos + offset) ar
-        |> Maybe.andThen checkBeforeSetting
+doNextOpcode : Memory -> OpResult
+doNextOpcode mem =
+    case Array.get mem.pos mem.ar of
+        Nothing ->
+            Fail "Opcode out of bounds" mem
+
+        Just code ->
+            case readOpcode code of
+                Unrecognised ->
+                    Fail "Unrecognised code" mem
+
+                Halt ->
+                    Done
+                        { outputs = mem.outputs
+                        , finalState = Array.toList mem.ar
+                        }
+
+                Add modes ->
+                    doArithmetic (+) modes mem
+
+                Mult modes ->
+                    doArithmetic (*) modes mem
+
+                Input ->
+                    doInput mem
+
+                Output mode ->
+                    doOutput mode mem
 
 
-doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode, Mode ) -> Memory -> OpResult
+doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode ) -> Memory -> OpResult
 doArithmetic op ( mode1, mode2 ) mem =
     let
         arg1 =
@@ -179,20 +168,69 @@ doArithmetic op ( mode1, mode2 ) mem =
     in
     case Maybe.map2 op arg1 arg2 of
         Nothing ->
-            Fail "Operand out of bounds" mem
+            Fail "Argument out of bounds" mem
 
         Just result ->
-            case setValue 3 mem of
+            setValue 3 result mem
+
+
+setValue : Int -> Int -> Memory -> OpResult
+setValue offset val mem =
+    let
+        pos =
+            mem.pos + offset
+
+        checkBeforeSetting =
+            \i ->
+                Array.get i mem.ar
+                    |> Maybe.map
+                        (always
+                            { mem
+                                | ar = Array.set i val mem.ar
+                                , pos = pos + 1
+                            }
+                        )
+
+        writePosition =
+            Array.get pos mem.ar
+    in
+    case writePosition of
+        Nothing ->
+            Fail "Param out of bounds" mem
+
+        Just i ->
+            case checkBeforeSetting i of
                 Nothing ->
-                    Fail "Output out of bounds" mem
+                    Fail "Write position out of bounds" mem
 
-                Just newArray ->
-                    doNextOpcode
-                        { ar = newArray
-                        , pos = mem.pos + 4
-                        }
+                Just newMem ->
+                    doNextOpcode newMem
 
 
-process : List Int -> OpResult
-process =
-    initMemory |> doNextOpcode
+doInput : Memory -> OpResult
+doInput mem =
+    case List.head mem.inputs of
+        Nothing ->
+            Fail "Expected input" mem
+
+        Just input ->
+            setValue 1 input mem
+
+
+doOutput : Mode -> Memory -> OpResult
+doOutput mode mem =
+    case getValue mode 1 mem of
+        Nothing ->
+            Fail "Argument out of bounds" mem
+
+        Just value ->
+            doNextOpcode
+                { mem
+                    | outputs = mem.outputs ++ [ value ]
+                    , pos = mem.pos + 2
+                }
+
+
+process : List Int -> List Int -> OpResult
+process program inputs =
+    initMemory program inputs |> doNextOpcode
