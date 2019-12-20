@@ -132,20 +132,6 @@ type OpResult
     | Fail String Memory
 
 
-getValue : Mode -> Int -> Memory -> Maybe Int
-getValue mode offset { ar, pos } =
-    let
-        immediateValue =
-            Array.get (pos + offset) ar
-    in
-    case mode of
-        Immediate ->
-            immediateValue
-
-        Position ->
-            Maybe.andThen (\i -> Array.get i ar) immediateValue
-
-
 doNextOpcode : Memory -> OpResult
 doNextOpcode mem =
     case Array.get mem.pos mem.ar of
@@ -221,6 +207,20 @@ doArithmetic op ( mode1, mode2 ) mem =
 
         Just result ->
             setValue 3 result mem
+
+
+getValue : Mode -> Int -> Memory -> Maybe Int
+getValue mode offset { ar, pos } =
+    let
+        immediateValue =
+            Array.get (pos + offset) ar
+    in
+    case mode of
+        Immediate ->
+            immediateValue
+
+        Position ->
+            Maybe.andThen (\i -> Array.get i ar) immediateValue
 
 
 setValue : Int -> Int -> Memory -> OpResult
