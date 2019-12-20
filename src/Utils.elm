@@ -25,3 +25,8 @@ filterMaybes list =
 
                 Just a ->
                     a :: filterMaybes xs
+
+
+flip : (a -> b -> c) -> (b -> a -> c)
+flip func =
+    \a b -> func b a

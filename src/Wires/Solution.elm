@@ -1,6 +1,6 @@
 module Wires.Solution exposing (Move(..), closestManhattanCrossing, closestWireCrossing, composeMoves, findCrossings)
 
-import Utils exposing (filterMaybes)
+import Utils exposing (filterMaybes, flip)
 
 
 type Move
@@ -110,11 +110,8 @@ sortPerpendicular e1 e2 =
 
 findCrossing : Edge -> Edge -> Maybe ( Coord, Int )
 findCrossing e1 e2 =
-    case sortPerpendicular e1 e2 of
-        Nothing ->
-            Nothing
-
-        Just ( horiz, vert ) ->
+    flip Maybe.andThen (sortPerpendicular e1 e2) <|
+        \( horiz, vert ) ->
             let
                 ( xh, yh ) =
                     horiz.origin
