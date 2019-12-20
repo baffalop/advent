@@ -1,5 +1,7 @@
 module Password.Solution exposing (explodeInt, implodeInt, passwordsInRange)
 
+import Utils exposing (bigHead, littleTail)
+
 
 explodeInt : Int -> List Int
 explodeInt n =
@@ -23,17 +25,6 @@ implodeInt input =
         ( 0, List.length input )
         input
         |> Tuple.first
-
-
-bigHead : List a -> List a
-bigHead list =
-    List.take (List.length list - 1) list
-
-
-littleTail : List a -> Maybe a
-littleTail list =
-    List.drop (List.length list - 1) list
-        |> List.head
 
 
 whereMonotonicityBreaks : List Int -> Maybe Int

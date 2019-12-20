@@ -1,5 +1,7 @@
 module Wires.Solution exposing (Move(..), closestManhattanCrossing, closestWireCrossing, composeMoves, findCrossings)
 
+import Utils exposing (filterMaybes)
+
 
 type Move
     = U Int
@@ -143,21 +145,6 @@ findCrossing e1 e2 =
 
             else
                 Nothing
-
-
-filterMaybes : List (Maybe a) -> List a
-filterMaybes list =
-    case list of
-        [] ->
-            []
-
-        x :: xs ->
-            case x of
-                Nothing ->
-                    filterMaybes xs
-
-                Just a ->
-                    a :: filterMaybes xs
 
 
 findCrossings : List Move -> List Move -> List ( Coord, Int )
