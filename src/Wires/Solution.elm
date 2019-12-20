@@ -1,7 +1,5 @@
 module Wires.Solution exposing (Move(..), closestManhattanCrossing, closestWireCrossing, composeMoves, findCrossings)
 
-import Set exposing (Set)
-
 
 type Move
     = U Int
