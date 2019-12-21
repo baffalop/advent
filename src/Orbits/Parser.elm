@@ -22,7 +22,7 @@ type alias Mapping =
 body : Parser String
 body =
     variable
-        { start = Char.isAlpha
+        { start = Char.isAlphaNum
         , inner = Char.isAlphaNum
         , reserved = Set.empty
         }
