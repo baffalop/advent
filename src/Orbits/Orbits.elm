@@ -1,30 +1,24 @@
 module Orbits.Orbits exposing (addOrbit, countOrbits, initCOM)
 
+import Dict exposing (Dict)
+
 
 type Body
-    = COM
-        { name : String
-        , moons : List Body
-        }
+    = COM { moons : Dict String Body }
     | InOrbit
-        { name : String
-        , orbitCount : Int
-        , moons : List Body
+        { orbitCount : Int
+        , moons : Dict String Body
         }
 
 
-initCOM : String -> Body
-initCOM name =
-    COM
-        { name = name
-        , moons = []
-        }
+initCOM : Body
+initCOM =
+    COM { moons = Dict.empty }
 
 
 addOrbit : String -> String -> Body -> Body
 addOrbit nodeName moonName =
-    addMoonToNode moonName
-        |> replaceNode nodeName
+    replaceNode nodeName (addMoonToNode moonName) "COM"
 
 
 getOrbitCount : Body -> Int
@@ -42,13 +36,12 @@ addMoonToNode name node =
     let
         moon =
             InOrbit
-                { name = name
-                , orbitCount = getOrbitCount node + 1
-                , moons = []
+                { orbitCount = getOrbitCount node + 1
+                , moons = Dict.empty
                 }
 
         addMoon =
-            \body -> { body | moons = moon :: body.moons }
+            \body -> { body | moons = Dict.insert name moon body.moons }
     in
     case node of
         COM body ->
@@ -58,25 +51,25 @@ addMoonToNode name node =
             InOrbit (addMoon body)
 
 
-replaceNode : String -> (Body -> Body) -> Body -> Body
-replaceNode nodeName nodeUpdate root =
+replaceNode : String -> (Body -> Body) -> String -> Body -> Body
+replaceNode targetName nodeUpdate thisNodeName root =
     let
         replaceMoons =
             \body ->
                 { body
-                    | moons = List.map (replaceNode nodeName nodeUpdate) body.moons
+                    | moons = Dict.map (replaceNode targetName nodeUpdate) body.moons
                 }
     in
     case root of
         COM body ->
-            if body.name == nodeName then
+            if targetName == thisNodeName then
                 nodeUpdate root
 
             else
                 COM (replaceMoons body)
 
         InOrbit body ->
-            if body.name == nodeName then
+            if targetName == thisNodeName then
                 nodeUpdate root
 
             else
@@ -87,7 +80,7 @@ countOrbits : Body -> Int
 countOrbits root =
     let
         sumOrbits =
-            List.foldl (\moon sum -> sum + countOrbits moon) 0
+            Dict.foldl (\_ moon sum -> sum + countOrbits moon) 0
     in
     case root of
         COM { moons } ->
