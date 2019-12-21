@@ -2,7 +2,8 @@ module Orbits.Input exposing (..)
 
 
 input =
-    """XNR)9W1
+    """
+XNR)9W1
 VGS)XCW
 WS5)5XM
 T9F)RTN

@@ -8,6 +8,7 @@ import Parser
         , Trailing(..)
         , chompWhile
         , sequence
+        , spaces
         , succeed
         , symbol
         , variable
@@ -45,14 +46,16 @@ orbit =
 
 map : Parser (List Mapping)
 map =
-    sequence
-        { start = ""
-        , end = ""
-        , separator = "\n"
-        , spaces = lineSpaces
-        , item = orbit
-        , trailing = Optional
-        }
+    succeed identity
+        |. spaces
+        |= sequence
+            { start = ""
+            , end = ""
+            , separator = "\n"
+            , spaces = lineSpaces
+            , item = orbit
+            , trailing = Optional
+            }
 
 
 parse : String -> Result (List Parser.DeadEnd) (List Mapping)
