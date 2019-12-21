@@ -4,16 +4,22 @@ import Dict exposing (Dict)
 
 
 type Body
-    = COM { moons : Dict String Body }
+    = COM
+        { name : String
+        , moons : Dict String Body
+        }
     | InOrbit
         { orbitCount : Int
         , moons : Dict String Body
         }
 
 
-initCOM : Body
-initCOM =
-    COM { moons = Dict.empty }
+initCOM : String -> Body
+initCOM name =
+    COM
+        { name = name
+        , moons = Dict.empty
+        }
 
 
 addOrbit : String -> String -> Body -> Body
@@ -62,7 +68,7 @@ replaceNode targetName nodeUpdate thisNodeName root =
     in
     case root of
         COM body ->
-            if targetName == thisNodeName then
+            if targetName == body.name then
                 nodeUpdate root
 
             else
