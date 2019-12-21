@@ -30,7 +30,7 @@ addOrbit nodeName moonName =
         \root ->
             let
                 newRoot =
-                    replaceNode nodeName (addMoonToNode moonName) "COM" root
+                    replaceNode nodeName (addMoonToNode moonName) root
             in
             if newRoot == root then
                 Err ("Couldn't find node " ++ nodeName ++ " in " ++ nodeName ++ ")" ++ moonName)
@@ -69,29 +69,31 @@ addMoonToNode name node =
             InOrbit (addMoon body)
 
 
-replaceNode : String -> (Body -> Body) -> String -> Body -> Body
-replaceNode targetName nodeUpdate thisNodeName root =
+replaceNode : String -> (Body -> Body) -> Body -> Body
+replaceNode nodeName nodeUpdate root =
     let
-        replaceMoons =
+        updateMoons =
             \body ->
-                { body
-                    | moons = Dict.map (replaceNode targetName nodeUpdate) body.moons
-                }
+                if Dict.member nodeName body.moons then
+                    { body
+                        | moons = Dict.update nodeName (Maybe.map nodeUpdate) body.moons
+                    }
+
+                else
+                    { body
+                        | moons = Dict.map (always <| replaceNode nodeName nodeUpdate) body.moons
+                    }
     in
     case root of
         COM body ->
-            if targetName == body.name then
+            if nodeName == body.name then
                 nodeUpdate root
 
             else
-                COM (replaceMoons body)
+                COM (updateMoons body)
 
         InOrbit body ->
-            if targetName == thisNodeName then
-                nodeUpdate root
-
-            else
-                InOrbit (replaceMoons body)
+            InOrbit (updateMoons body)
 
 
 countOrbits : Body -> Int
