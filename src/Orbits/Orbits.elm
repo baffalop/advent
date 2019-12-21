@@ -1,164 +1,59 @@
-module Orbits.Orbits exposing (addOrbit, bodyFromMap, countOrbitsInBody, countOrbitsInMap, initCOM, parseMap)
+module Orbits.Orbits exposing (countOrbits, parseMap, sortMappings)
 
 import Dict exposing (Dict)
 import Orbits.Parser as Parser exposing (Mapping)
 
 
-type Body
-    = COM
-        { name : String
-        , moons : Dict String Body
-        }
-    | InOrbit
-        { orbitCount : Int
-        , moons : Dict String Body
-        }
+type alias Map =
+    { moons : Dict String (List String)
+    , orbits : Dict String String
+    }
 
 
-initCOM : String -> Result String Body
-initCOM name =
-    Ok
-        (COM
-            { name = name
-            , moons = Dict.empty
-            }
-        )
-
-
-addOrbit : Mapping -> Result String Body -> Result String Body
-addOrbit ( nodeName, moonName ) =
-    Result.andThen <|
-        \root ->
-            let
-                newRoot =
-                    replaceNode nodeName (addMoonToNode moonName) root
-            in
-            if newRoot == root then
-                Err ("Couldn't find node " ++ nodeName ++ " in " ++ nodeName ++ ")" ++ moonName)
-
-            else
-                Ok newRoot
-
-
-getOrbitCount : Body -> Int
-getOrbitCount body =
-    case body of
-        COM _ ->
-            0
-
-        InOrbit { orbitCount } ->
-            orbitCount
-
-
-addMoonToNode : String -> Body -> Body
-addMoonToNode name node =
+mapFromList : List Mapping -> Map
+mapFromList mappings =
     let
-        moon =
-            InOrbit
-                { orbitCount = getOrbitCount node + 1
-                , moons = Dict.empty
-                }
-
         addMoon =
-            \body -> { body | moons = Dict.insert name moon body.moons }
-    in
-    case node of
-        COM body ->
-            COM (addMoon body)
-
-        InOrbit body ->
-            InOrbit (addMoon body)
-
-
-replaceNode : String -> (Body -> Body) -> Body -> Body
-replaceNode nodeName nodeUpdate root =
-    let
-        updateMoons =
-            \body ->
-                if Dict.member nodeName body.moons then
-                    { body
-                        | moons = Dict.update nodeName (Maybe.map nodeUpdate) body.moons
-                    }
+            \( com, moon ) map ->
+                if Dict.member com map then
+                    Dict.update com (Maybe.map ((::) moon)) map
 
                 else
-                    { body
-                        | moons = Dict.map (always <| replaceNode nodeName nodeUpdate) body.moons
-                    }
+                    Dict.insert com [ moon ] map
     in
-    case root of
-        COM body ->
-            if nodeName == body.name then
-                nodeUpdate root
-
-            else
-                COM (updateMoons body)
-
-        InOrbit body ->
-            InOrbit (updateMoons body)
+    { orbits = Dict.fromList <| List.map (\( x, y ) -> ( y, x )) mappings
+    , moons = List.foldl addMoon Dict.empty mappings
+    }
 
 
-countOrbitsInBody : Body -> Int
-countOrbitsInBody root =
-    let
-        sumOrbits =
-            Dict.foldl (\_ moon sum -> sum + countOrbitsInBody moon) 0
-    in
-    case root of
-        COM { moons } ->
-            sumOrbits moons
-
-        InOrbit { orbitCount, moons } ->
-            orbitCount + sumOrbits moons
-
-
-bodyFromMap : List Mapping -> Result String Body
-bodyFromMap mappings =
-    case sortMap mappings of
-        [] ->
-            Err "Input is empty"
-
-        ( com, first ) :: rest ->
-            List.foldl
-                addOrbit
-                (initCOM com |> addOrbit ( com, first ))
-                rest
-
-
-dictFromMap : List Mapping -> Dict String String
-dictFromMap mappings =
-    Dict.fromList <| List.map (\( x, y ) -> ( y, x )) mappings
-
-
-sortMap : List Mapping -> List Mapping
-sortMap mappings =
+sortMappings : List Mapping -> List Mapping
+sortMappings mappings =
     let
         map =
-            dictFromMap mappings
+            mapFromList mappings
     in
     List.sortBy (Tuple.first >> countNodesFromCom map) mappings
 
 
-countOrbitsInMap : List Mapping -> Int
-countOrbitsInMap mappings =
-    let
-        map =
-            dictFromMap mappings
-    in
-    List.map (Tuple.first >> countNodesFromCom map) mappings
+countOrbits : Map -> Int
+countOrbits map =
+    Dict.toList map.orbits
+        |> List.map (Tuple.first >> countNodesFromCom map)
         |> List.sum
 
 
-countNodesFromCom : Dict String String -> String -> Int
-countNodesFromCom dict name =
-    case Dict.get name dict of
+countNodesFromCom : Map -> String -> Int
+countNodesFromCom map name =
+    case Dict.get name map.orbits of
         Nothing ->
             1
 
         Just root ->
-            1 + countNodesFromCom dict root
+            1 + countNodesFromCom map root
 
 
-parseMap : String -> List Mapping
+parseMap : String -> Map
 parseMap input =
     Parser.parseMap input
         |> Result.withDefault []
+        |> mapFromList
