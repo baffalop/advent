@@ -14,17 +14,29 @@ type Body
         }
 
 
-initCOM : String -> Body
+initCOM : String -> Result String Body
 initCOM name =
-    COM
-        { name = name
-        , moons = Dict.empty
-        }
+    Ok
+        (COM
+            { name = name
+            , moons = Dict.empty
+            }
+        )
 
 
-addOrbit : String -> String -> Body -> Body
+addOrbit : String -> String -> Result String Body -> Result String Body
 addOrbit nodeName moonName =
-    replaceNode nodeName (addMoonToNode moonName) "COM"
+    Result.andThen <|
+        \root ->
+            let
+                newRoot =
+                    replaceNode nodeName (addMoonToNode moonName) "COM" root
+            in
+            if newRoot == root then
+                Err ("Couldn't find node " ++ nodeName ++ " in " ++ nodeName ++ ")" ++ moonName)
+
+            else
+                Ok newRoot
 
 
 getOrbitCount : Body -> Int
