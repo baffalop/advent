@@ -1,7 +1,7 @@
-module Orbits.Orbits exposing (addOrbit, countOrbits, initCOM, parseMap)
+module Orbits.Orbits exposing (addOrbit, countOrbits, fromMappings, initCOM, sortMappings)
 
 import Dict exposing (Dict)
-import Orbits.Parser as Parser
+import Orbits.Parser exposing (Mapping)
 
 
 type Body
@@ -25,8 +25,8 @@ initCOM name =
         )
 
 
-addOrbit : String -> String -> Result String Body -> Result String Body
-addOrbit nodeName moonName =
+addOrbit : Mapping -> Result String Body -> Result String Body
+addOrbit ( nodeName, moonName ) =
     Result.andThen <|
         \root ->
             let
@@ -97,32 +97,36 @@ replaceNode nodeName nodeUpdate root =
             InOrbit (updateMoons body)
 
 
-parseMap : String -> Result String Body
-parseMap input =
-    case Parser.parse input of
-        Err deadEnds ->
-            case deadEnds of
-                [] ->
-                    Err "Why would the parser output empty DeadEnds?"
+fromMappings : List Mapping -> Result String Body
+fromMappings mappings =
+    case sortMappings mappings of
+        [] ->
+            Err "Input is empty"
 
-                { col, row } :: _ ->
-                    Err
-                        ("Error parsing at col "
-                            ++ String.fromInt col
-                            ++ ": row "
-                            ++ String.fromInt row
-                        )
+        ( com, first ) :: rest ->
+            List.foldl
+                addOrbit
+                (initCOM com |> addOrbit ( com, first ))
+                rest
 
-        Ok list ->
-            case list of
-                [] ->
-                    Err "Parsed input was empty"
 
-                ( com, first ) :: rest ->
-                    List.foldl
-                        (\( body, moon ) -> addOrbit body moon)
-                        (initCOM com |> addOrbit com first)
-                        rest
+sortMappings : List Mapping -> List Mapping
+sortMappings mappings =
+    let
+        dict =
+            Dict.fromList (List.map (\( x, y ) -> ( y, x )) mappings)
+    in
+    List.sortBy (Tuple.first >> countNodesFromCom dict) mappings
+
+
+countNodesFromCom : Dict String String -> String -> Int
+countNodesFromCom dict name =
+    case Dict.get name dict of
+        Nothing ->
+            0
+
+        Just root ->
+            1 + countNodesFromCom dict root
 
 
 countOrbits : Body -> Int

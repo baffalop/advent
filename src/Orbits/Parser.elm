@@ -1,4 +1,4 @@
-module Orbits.Parser exposing (map, parse)
+module Orbits.Parser exposing (Mapping, map, parseMap)
 
 import Parser
     exposing
@@ -58,6 +58,6 @@ map =
             }
 
 
-parse : String -> Result (List Parser.DeadEnd) (List Mapping)
-parse =
+parseMap : String -> Result (List Parser.DeadEnd) (List Mapping)
+parseMap =
     Parser.run map
