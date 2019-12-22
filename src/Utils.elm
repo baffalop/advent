@@ -37,15 +37,15 @@ find needle list =
     List.foldl
         (\item result ->
             case result of
+                Ok i ->
+                    Ok i
+
                 Err i ->
                     if item == needle then
                         Ok i
 
                     else
                         Err (i + 1)
-
-                Ok i ->
-                    Ok i
         )
         (Err 0)
         list
