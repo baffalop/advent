@@ -30,3 +30,46 @@ filterMaybes list =
 flip : (a -> b -> c) -> (b -> a -> c)
 flip func =
     \a b -> func b a
+
+
+find : comparable -> List comparable -> Maybe Int
+find needle list =
+    List.foldl
+        (\item result ->
+            case result of
+                Err i ->
+                    if item == needle then
+                        Ok i
+
+                    else
+                        Err (i + 1)
+
+                Ok i ->
+                    Ok i
+        )
+        (Err 0)
+        list
+        |> (\result ->
+                case result of
+                    Err _ ->
+                        Nothing
+
+                    Ok i ->
+                        Just i
+           )
+
+
+dropTo : comparable -> List comparable -> List comparable
+dropTo needle list =
+    find needle list
+        |> Maybe.map ((+) 1)
+        |> Maybe.withDefault (List.length list)
+        |> flip List.drop list
+
+
+takeTo : comparable -> List comparable -> List comparable
+takeTo needle list =
+    find needle list
+        |> Maybe.map ((+) 1)
+        |> Maybe.withDefault 0
+        |> flip List.take list
