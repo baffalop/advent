@@ -1,6 +1,6 @@
 module Password.Solution exposing (explodeInt, implodeInt, passwordsInRange)
 
-import Utils exposing (bigHead, littleTail)
+import Utils exposing (littleTail)
 
 
 explodeInt : Int -> List Int
@@ -33,7 +33,7 @@ whereMonotonicityBreaks input =
         [] ->
             Nothing
 
-        n :: [] ->
+        _ :: [] ->
             Nothing
 
         n :: (m :: ms) ->
@@ -80,7 +80,7 @@ countFirstDigit input =
         [] ->
             0
 
-        x :: [] ->
+        _ :: [] ->
             1
 
         x :: (y :: ys) ->

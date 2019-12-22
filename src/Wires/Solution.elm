@@ -131,8 +131,8 @@ findCrossing e1 e2 =
                         + abs (xv - xh)
                         + horiz.distance
 
-                between =
-                    \a ( x, y ) -> a > min x y && a < max x y
+                between n ( x, y ) =
+                    n > min x y && n < max x y
             in
             if
                 between yh ( yv, yv + up )
@@ -179,8 +179,8 @@ closestCrossing measure moves1 moves2 =
 closestManhattanCrossing : List Move -> List Move -> Maybe { coord : Coord, distance : Int }
 closestManhattanCrossing =
     let
-        manhattanDistance =
-            \( x, y ) -> abs x + abs y
+        manhattanDistance ( x, y ) =
+            abs x + abs y
     in
     closestCrossing (Tuple.first >> manhattanDistance)
 

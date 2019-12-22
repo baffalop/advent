@@ -77,8 +77,8 @@ findPath ( from, to ) map =
                 |> List.tail
                 |> Maybe.withDefault []
 
-        toJumps =
-            \dir -> List.map (Tuple.pair dir)
+        toJumps dir =
+            List.map (Tuple.pair dir)
     in
     case Utils.littleTail down of
         Just bottom ->
