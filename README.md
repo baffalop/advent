@@ -14,3 +14,4 @@ These modules are meant to be loaded into the Elm REPL. I should document which 
 - **Day 3: Crossed Wires** `src/Wires/`
 - **Day 4: Secure Container** `src/Password/`
 - **Day 5: Sunny with a Chance of Asteroids** `src/Intcodes/` using `Intcodes.Program.test` as input
+- **Day 6: Universal Orbit Map** `src/Orbits/`
