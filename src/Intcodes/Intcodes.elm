@@ -1,6 +1,7 @@
-module Intcodes.Intcodes exposing (OpResult(..), run)
+module Intcodes.Intcodes exposing (OpResult(..), continue, run)
 
 import Array exposing (Array)
+import Utils exposing (intsToString)
 
 
 type Opcode
@@ -111,8 +112,8 @@ readOpcode code =
 type alias Memory =
     { ar : Array Int
     , pos : Int
-    , inputs : List Int
-    , outputs : List Int
+    , input : List Int
+    , output : List Int
     }
 
 
@@ -120,30 +121,31 @@ initMemory : List Int -> List Int -> Memory
 initMemory program inputs =
     { ar = Array.fromList program
     , pos = 0
-    , inputs = inputs
-    , outputs = []
+    , input = inputs
+    , output = []
     }
 
 
 type OpResult
-    = Done { outputs : List Int, finalState : List Int }
-    | Fail String Memory
+    = Done { output : List Int, finalState : List Int }
+    | Waiting Memory
+    | Fail String (Maybe Memory)
 
 
 doNextOpcode : Memory -> OpResult
 doNextOpcode mem =
     case Array.get mem.pos mem.ar of
         Nothing ->
-            Fail "Opcode out of bounds" mem
+            Fail "Opcode out of bounds" (Just mem)
 
         Just code ->
             case readOpcode code of
                 Unrecognised ->
-                    Fail ("Unrecognised code " ++ String.fromInt code) mem
+                    Fail ("Unrecognised code " ++ String.fromInt code) (Just mem)
 
                 Halt ->
                     Done
-                        { outputs = mem.outputs
+                        { output = mem.output
                         , finalState = Array.toList mem.ar
                         }
 
@@ -201,7 +203,7 @@ doArithmetic op ( mode1, mode2 ) mem =
     in
     case Maybe.map2 op arg1 arg2 of
         Nothing ->
-            Fail "Argument out of bounds" mem
+            Fail "Argument out of bounds" (Just mem)
 
         Just result ->
             setValue 3 result mem
@@ -242,12 +244,12 @@ setValue offset val mem =
     in
     case writePosition of
         Nothing ->
-            Fail "Param out of bounds" mem
+            Fail "Param out of bounds" (Just mem)
 
         Just i ->
             case checkBeforeSetting i of
                 Nothing ->
-                    Fail "Write position out of bounds" mem
+                    Fail "Write position out of bounds" (Just mem)
 
                 Just newMem ->
                     doNextOpcode newMem
@@ -255,30 +257,24 @@ setValue offset val mem =
 
 doInput : Memory -> OpResult
 doInput mem =
-    case List.head mem.inputs of
-        Nothing ->
-            Fail "Expected input" mem
+    case mem.input of
+        [] ->
+            Waiting mem
 
-        Just input ->
-            setValue 1
-                input
-                { mem
-                    | inputs =
-                        List.tail mem.inputs
-                            |> Maybe.withDefault []
-                }
+        x :: xs ->
+            setValue 1 x { mem | input = xs }
 
 
 doOutput : Mode -> Memory -> OpResult
 doOutput mode mem =
     case getValue mode 1 mem of
         Nothing ->
-            Fail "Argument out of bounds" mem
+            Fail "Argument out of bounds" (Just mem)
 
         Just value ->
             doNextOpcode
                 { mem
-                    | outputs = mem.outputs ++ [ value ]
+                    | output = mem.output ++ [ value ]
                     , pos = mem.pos + 2
                 }
 
@@ -287,13 +283,13 @@ jumpIf : ( Mode, Mode ) -> (Bool -> Bool) -> Memory -> OpResult
 jumpIf ( mode1, mode2 ) func mem =
     case getValue mode1 1 mem of
         Nothing ->
-            Fail "Argument out of bounds" mem
+            Fail "Argument out of bounds" (Just mem)
 
         Just value ->
             if func (value /= 0) then
                 case getValue mode2 2 mem of
                     Nothing ->
-                        Fail "Argument out of bounds" mem
+                        Fail "Argument out of bounds" (Just mem)
 
                     Just v ->
                         doNextOpcode { mem | pos = v }
@@ -305,3 +301,18 @@ jumpIf ( mode1, mode2 ) func mem =
 run : List Int -> List Int -> OpResult
 run program inputs =
     initMemory program inputs |> doNextOpcode
+
+
+continue : OpResult -> List Int -> OpResult
+continue state input =
+    case state of
+        Waiting mem ->
+            doInput { mem | input = input }
+
+        Done { output } ->
+            Fail
+                ("Already Done, with output " ++ intsToString output)
+                Nothing
+
+        _ ->
+            state

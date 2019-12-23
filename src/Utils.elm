@@ -73,3 +73,8 @@ takeTo needle list =
         |> Maybe.map ((+) 1)
         |> Maybe.withDefault 0
         |> flip List.take list
+
+
+intsToString : List Int -> String
+intsToString =
+    List.foldl ((String.fromInt >> flip (++) ", ") >> flip (++)) ""

@@ -1,37 +1,18 @@
-module Amps.Amps exposing (optimiseAmps, runAmps)
+module Amps.Amps exposing (optimiseAmps, permuteUnique, runAmps)
 
 import Intcodes.Intcodes as Intcodes exposing (OpResult(..))
 import Set
-import Utils exposing (filterMaybes)
+import Utils exposing (filterMaybes, flip)
 
 
-toResult : OpResult -> Result String (List Int)
-toResult opResult =
-    case opResult of
-        Done { outputs } ->
-            Ok outputs
-
-        Fail message _ ->
-            Err message
-
-
-runAmps : List Int -> List Int -> Result String (List Int)
-runAmps program phases =
+permuteUnique : Int -> Int -> List (List Int)
+permuteUnique lower upper =
     let
-        runAmp : Int -> Result String (List Int) -> Result String (List Int)
-        runAmp phase lastResult =
-            Result.andThen
-                (\input -> (phase :: input) |> Intcodes.run program |> toResult)
-                lastResult
-    in
-    List.foldl runAmp (Ok [ 0 ]) phases
+        range =
+            List.range lower upper
 
-
-permuteUnique : Int -> List (List Int)
-permuteUnique limit =
-    let
         seed =
-            List.repeat limit (List.range 0 (limit - 1))
+            List.repeat (List.length range) range
 
         addToPermutations add perms =
             List.concatMap
@@ -41,24 +22,46 @@ permuteUnique limit =
                 )
                 add
     in
-    List.foldl addToPermutations (List.repeat limit []) seed
+    List.foldl addToPermutations (List.repeat (List.length range) []) seed
         |> Set.fromList
         |> Set.toList
 
 
-optimiseAmps : List Int -> Int -> Maybe ( List Int, List Int )
-optimiseAmps program count =
-    let
-        resultsToMaybe ( result, phases ) =
-            case result of
-                Err _ ->
-                    Nothing
+initAmps : List Int -> List Int -> List OpResult
+initAmps program phases =
+    List.map (List.singleton >> Intcodes.run program) phases
 
-                Ok x ->
-                    Just ( x, phases )
+
+runAmps : List Int -> List OpResult -> ( List Int, List OpResult )
+runAmps input amps =
+    case amps of
+        [] ->
+            ( input, [] )
+
+        amp :: rest ->
+            let
+                result =
+                    Intcodes.continue amp input
+            in
+            case result of
+                Fail _ _ ->
+                    ( input, [ result ] )
+
+                Waiting { output } ->
+                    Tuple.mapSecond ((::) result) (runAmps output rest)
+
+                Done { output } ->
+                    Tuple.mapSecond ((::) result) (runAmps output rest)
+
+
+optimiseAmps : List Int -> Int -> Int -> Maybe ( List Int, List Int )
+optimiseAmps program lower upper =
+    let
+        permutations =
+            permuteUnique lower upper
     in
-    List.map (\phases -> ( runAmps program phases, phases )) (permuteUnique count)
-        |> List.map resultsToMaybe
-        |> filterMaybes
+    List.map (initAmps program >> runAmps [ 0 ]) permutations
+        |> List.map Tuple.first
+        |> List.map2 (flip Tuple.pair) permutations
         |> List.sortBy (Tuple.first >> List.head >> Maybe.withDefault 0 >> negate)
         |> List.head
