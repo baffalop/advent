@@ -60,23 +60,21 @@ readOpcode code =
         modesDigits =
             code // 100
 
-        with1Mode =
-            \construct ->
-                case readMode modesDigits of
-                    Nothing ->
-                        Unrecognised
+        with1Mode construct =
+            case readMode modesDigits of
+                Nothing ->
+                    Unrecognised
 
-                    Just ( mode, _ ) ->
-                        construct mode
+                Just ( mode, _ ) ->
+                    construct mode
 
-        with2Modes =
-            \construct ->
-                case read2Modes modesDigits of
-                    Nothing ->
-                        Unrecognised
+        with2Modes construct =
+            case read2Modes modesDigits of
+                Nothing ->
+                    Unrecognised
 
-                    Just modes ->
-                        construct modes
+                Just modes ->
+                    construct modes
     in
     case op of
         1 ->
@@ -229,16 +227,15 @@ setValue offset val mem =
         pos =
             mem.pos + offset
 
-        checkBeforeSetting =
-            \i ->
-                Array.get i mem.ar
-                    |> Maybe.map
-                        (always
-                            { mem
-                                | ar = Array.set i val mem.ar
-                                , pos = pos + 1
-                            }
-                        )
+        checkBeforeSetting i =
+            Array.get i mem.ar
+                |> Maybe.map
+                    (always
+                        { mem
+                            | ar = Array.set i val mem.ar
+                            , pos = pos + 1
+                        }
+                    )
 
         writePosition =
             Array.get pos mem.ar
