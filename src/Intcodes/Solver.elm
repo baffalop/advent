@@ -1,6 +1,6 @@
 module Intcodes.Solver exposing (permute, tryAll)
 
-import Intcodes.Intcodes exposing (OpResult(..), process)
+import Intcodes.Intcodes exposing (OpResult(..), run)
 import Intcodes.Program exposing (program)
 
 
@@ -16,7 +16,7 @@ run params =
         firstOp =
             Maybe.withDefault 1 (List.head program)
     in
-    process ([ firstOp ] ++ [ noun, verb ] ++ List.drop 3 program)
+    run ([ firstOp ] ++ [ noun, verb ] ++ List.drop 3 program)
 
 
 permute : Int -> List ( Int, Int )

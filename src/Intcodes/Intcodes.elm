@@ -1,4 +1,4 @@
-module Intcodes.Intcodes exposing (OpResult(..), process)
+module Intcodes.Intcodes exposing (OpResult(..), run)
 
 import Array exposing (Array)
 
@@ -302,6 +302,6 @@ jumpIf ( mode1, mode2 ) func mem =
                 doNextOpcode { mem | pos = mem.pos + 3 }
 
 
-process : List Int -> List Int -> OpResult
-process program inputs =
+run : List Int -> List Int -> OpResult
+run program inputs =
     initMemory program inputs |> doNextOpcode
