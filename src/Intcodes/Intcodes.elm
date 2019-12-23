@@ -260,7 +260,13 @@ doInput mem =
             Fail "Expected input" mem
 
         Just input ->
-            setValue 1 input mem
+            setValue 1
+                input
+                { mem
+                    | inputs =
+                        List.tail mem.inputs
+                            |> Maybe.withDefault []
+                }
 
 
 doOutput : Mode -> Memory -> OpResult
