@@ -16,3 +16,4 @@ These modules are meant to be loaded into the Elm REPL. I should document which 
 - **Day 5: Sunny with a Chance of Asteroids** `src/Intcodes/` using `Intcodes.Program.test` as input
 - **Day 6: Universal Orbit Map** `src/Orbits/`
 - **Day 7: Amplification Circuit** `src/Amps/`
+- **Day 8: Space Image Format** `src/Image/`
