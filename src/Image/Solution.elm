@@ -1,5 +1,7 @@
 module Image.Solution exposing (checksum, partitionImage, renderImage)
 
+import Utils exposing (curry)
+
 
 type alias Layer =
     List (List Int)
@@ -30,7 +32,7 @@ checksum image =
         multiplyNonzeroes digits =
             List.partition ((==) 1) digits
                 |> Tuple.mapBoth List.length List.length
-                |> (\( x, y ) -> x * y)
+                |> curry (*)
     in
     image
         |> List.map

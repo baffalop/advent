@@ -32,10 +32,20 @@ flip func =
     \a b -> func b a
 
 
+curry : (a -> b -> c) -> (( a, b ) -> c)
+curry func =
+    \( a, b ) -> func a b
+
+
+uncurry : (( a, b ) -> c) -> (a -> b -> c)
+uncurry func =
+    \a b -> func ( a, b )
+
+
 find : comparable -> List comparable -> Maybe Int
-find needle list =
-    List.foldl
-        (\item result ->
+find needle =
+    (flip List.foldl (Err 0) <|
+        \item result ->
             case result of
                 Ok i ->
                     Ok i
@@ -46,17 +56,8 @@ find needle list =
 
                     else
                         Err (i + 1)
-        )
-        (Err 0)
-        list
-        |> (\result ->
-                case result of
-                    Err _ ->
-                        Nothing
-
-                    Ok i ->
-                        Just i
-           )
+    )
+        >> Result.toMaybe
 
 
 dropTo : comparable -> List comparable -> List comparable
