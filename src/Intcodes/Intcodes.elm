@@ -13,13 +13,15 @@ type Opcode
     | JumpIfFalse ( Mode, Mode )
     | LessThan ( Mode, Mode )
     | Equals ( Mode, Mode )
+    | ChangeBase Mode
     | Halt
     | Unrecognised
 
 
 type Mode
-    = Position
-    | Immediate
+    = Immediate
+    | Position
+    | Relative
 
 
 readMode : Int -> Maybe ( Mode, Int )
@@ -34,6 +36,9 @@ readMode n =
 
         1 ->
             Just ( Immediate, next )
+
+        2 ->
+            Just ( Relative, next )
 
         _ ->
             Nothing
@@ -102,6 +107,9 @@ readOpcode code =
         8 ->
             with2Modes (\m -> Equals m)
 
+        9 ->
+            with1Mode (\m -> ChangeBase m)
+
         99 ->
             Halt
 
@@ -112,6 +120,7 @@ readOpcode code =
 type alias Memory =
     { ar : Array Int
     , pos : Int
+    , base : Int
     , input : List Int
     , output : List Int
     }
@@ -121,6 +130,7 @@ initMemory : List Int -> List Int -> Memory
 initMemory program inputs =
     { ar = Array.fromList program
     , pos = 0
+    , base = 0
     , input = inputs
     , output = []
     }
@@ -191,6 +201,9 @@ doNextOpcode mem =
                         modes
                         mem
 
+                ChangeBase mode ->
+                    changeBase mode mem
+
 
 doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode ) -> Memory -> OpResult
 doArithmetic op ( mode1, mode2 ) mem =
@@ -210,7 +223,7 @@ doArithmetic op ( mode1, mode2 ) mem =
 
 
 getValue : Mode -> Int -> Memory -> Maybe Int
-getValue mode offset { ar, pos } =
+getValue mode offset { ar, pos, base } =
     let
         immediateValue =
             Array.get (pos + offset) ar
@@ -222,22 +235,32 @@ getValue mode offset { ar, pos } =
         Position ->
             Maybe.andThen (\i -> Array.get i ar) immediateValue
 
+        Relative ->
+            Maybe.andThen (\i -> Array.get (base + i) ar) immediateValue
+
+
+expandArray : Array Int -> Int -> Array Int
+expandArray ar toPos =
+    if toPos < 0 then
+        ar
+
+    else
+        let
+            size =
+                Array.length ar
+        in
+        if size > toPos then
+            ar
+
+        else
+            Array.append ar <| Array.repeat (toPos - size) 0
+
 
 setValue : Int -> Int -> Memory -> OpResult
 setValue offset val mem =
     let
         pos =
             mem.pos + offset
-
-        checkBeforeSetting i =
-            Array.get i mem.ar
-                |> Maybe.map
-                    (always
-                        { mem
-                            | ar = Array.set i val mem.ar
-                            , pos = pos + 1
-                        }
-                    )
 
         writePosition =
             Array.get pos mem.ar
@@ -247,12 +270,17 @@ setValue offset val mem =
             Fail "Param out of bounds" (Just mem)
 
         Just i ->
-            case checkBeforeSetting i of
-                Nothing ->
-                    Fail "Write position out of bounds" (Just mem)
+            if i < 0 then
+                Fail "Write position is negative" (Just mem)
 
-                Just newMem ->
-                    doNextOpcode newMem
+            else
+                doNextOpcode
+                    { mem
+                        | ar =
+                            Array.set i val <|
+                                expandArray mem.ar i
+                        , pos = pos + 1
+                    }
 
 
 doInput : Memory -> OpResult
@@ -296,6 +324,20 @@ jumpIf ( mode1, mode2 ) func mem =
 
             else
                 doNextOpcode { mem | pos = mem.pos + 3 }
+
+
+changeBase : Mode -> Memory -> OpResult
+changeBase mode mem =
+    case getValue mode 1 mem of
+        Nothing ->
+            Fail "Argument out of bounds" (Just mem)
+
+        Just newBase ->
+            doNextOpcode
+                { mem
+                    | base = newBase
+                    , pos = mem.pos + 2
+                }
 
 
 run : List Int -> List Int -> OpResult
