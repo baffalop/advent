@@ -4,12 +4,16 @@ import Utils exposing (littleTail)
 
 
 explodeInt : Int -> List Int
-explodeInt n =
-    if n < 10 then
-        [ n ]
+explodeInt number =
+    let
+        explode n =
+            if n < 10 then
+                [ n ]
 
-    else
-        explodeInt (n // 10) ++ [ modBy 10 n ]
+            else
+                modBy 10 n :: explodeInt (n // 10)
+    in
+    explode number |> List.reverse
 
 
 implodeInt : List Int -> Int
