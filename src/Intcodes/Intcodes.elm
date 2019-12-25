@@ -51,9 +51,9 @@ initMemory program inputs =
     }
 
 
-advance : Memory -> Memory
-advance mem =
-    { mem | pos = mem.pos + 1 }
+next : Memory -> OpResult
+next mem =
+    Next { mem | pos = mem.pos + 1 }
 
 
 consumeRegisters : Memory -> Memory
@@ -61,9 +61,9 @@ consumeRegisters mem =
     { mem | registers = [] }
 
 
-consumeInput : Memory -> Memory
-consumeInput mem =
-    { mem | input = List.tail mem.input |> Maybe.withDefault [] }
+nextInstruction : Memory -> OpResult
+nextInstruction mem =
+    next { mem | instruction = ReadCode }
 
 
 expand : Int -> Array Int -> Array Int
@@ -83,65 +83,70 @@ expand toPos ar =
             Array.append ar <| Array.repeat (toPos - size + 1) 0
 
 
-substep : Memory -> OpResult
-substep mem =
-    let
-        { pos, ar, instruction, registers } =
-            mem
-    in
-    case instruction of
-        Unrecognised ->
-            Fail "Unrecognised Opcode" (Just mem)
+step : OpResult -> OpResult
+step state =
+    case state of
+        Next mem ->
+            let
+                { pos, ar, instruction, registers } =
+                    mem
+            in
+            case instruction of
+                Unrecognised ->
+                    Fail "Unrecognised Opcode" (Just mem)
 
-        Halt ->
-            Done
-                { output = mem.output
-                , finalState = Array.toList ar
-                }
+                Halt ->
+                    Done
+                        { output = mem.output
+                        , finalState = Array.toList ar
+                        }
 
-        ReadCode ->
-            doReadCode mem
+                ReadCode ->
+                    doReadCode mem
 
-        Arithmetic f ( mode1, mode2 ) ->
-            case List.length registers of
-                0 ->
-                    getValue mode1 pos mem
+                Arithmetic f ( mode1, mode2 ) ->
+                    case List.length registers of
+                        0 ->
+                            getValue mode1 pos mem
 
-                1 ->
-                    getValue mode2 pos mem
+                        1 ->
+                            getValue mode2 pos mem
 
-                _ ->
-                    doArithmetic f mem
+                        _ ->
+                            doArithmetic f mem
 
-        JumpIf f ( mode1, mode2 ) ->
-            case List.length registers of
-                0 ->
-                    getValue mode1 pos mem
+                JumpIf f ( mode1, mode2 ) ->
+                    case List.length registers of
+                        0 ->
+                            getValue mode1 pos mem
 
-                1 ->
-                    getValue mode2 pos mem
+                        1 ->
+                            getValue mode2 pos mem
 
-                _ ->
-                    jumpIf f mem
+                        _ ->
+                            jumpIf f mem
 
-        Input ->
-            doInput mem
+                Input ->
+                    doInput mem
 
-        Output mode ->
-            case List.length registers of
-                0 ->
-                    getValue mode pos mem
+                Output mode ->
+                    case List.length registers of
+                        0 ->
+                            getValue mode pos mem
 
-                _ ->
-                    doOutput mem
+                        _ ->
+                            doOutput mem
 
-        ChangeBase mode ->
-            case List.length registers of
-                0 ->
-                    getValue mode pos mem
+                ChangeBase mode ->
+                    case List.length registers of
+                        0 ->
+                            getValue mode pos mem
 
-                _ ->
-                    changeBase mem
+                        _ ->
+                            changeBase mem
+
+        _ ->
+            state
 
 
 doReadCode : Memory -> OpResult
@@ -156,7 +161,7 @@ doReadCode mem =
                     Fail ("Unrecognised code " ++ String.fromInt code) (Just mem)
 
                 instruction ->
-                    substep (advance { mem | instruction = instruction })
+                    next { mem | instruction = instruction }
 
 
 readMode : Int -> Maybe ( Mode, Int )
@@ -270,7 +275,7 @@ doArithmetic op mem =
             Fail "Registers are not populated" (Just mem)
 
         x :: (y :: _) ->
-            setValue (op x y) mem
+            setValue (op x y) (consumeRegisters mem)
 
 
 getValue : Mode -> Int -> Memory -> OpResult
@@ -292,7 +297,7 @@ getValue mode pos mem =
         Just value ->
             case mode of
                 Immediate ->
-                    { newMem | registers = mem.registers ++ [ value ] } |> advance |> substep
+                    next { newMem | registers = mem.registers ++ [ value ] }
 
                 Position ->
                     getValue Immediate value newMem
@@ -312,7 +317,7 @@ setValue val mem =
                 Fail "Write position is negative" (Just mem)
 
             else
-                Next (advance { mem | ar = Array.set i val <| expand i mem.ar })
+                nextInstruction { mem | ar = Array.set i val <| expand i mem.ar }
 
 
 doInput : Memory -> OpResult
@@ -332,7 +337,13 @@ doOutput mem =
             Fail "Registers not populated" (Just mem)
 
         Just value ->
-            Next { mem | output = mem.output ++ [ value ] }
+            Next
+                (consumeRegisters
+                    { mem
+                        | output = mem.output ++ [ value ]
+                        , instruction = ReadCode
+                    }
+                )
 
 
 jumpIf : (Int -> Bool) -> Memory -> OpResult
@@ -346,10 +357,10 @@ jumpIf func mem =
 
         value :: (jumpPos :: _) ->
             if func value then
-                Next { mem | pos = jumpPos }
+                Next { mem | pos = jumpPos, instruction = ReadCode }
 
             else
-                Next (advance mem)
+                nextInstruction (consumeRegisters mem)
 
 
 changeBase : Memory -> OpResult
@@ -359,7 +370,7 @@ changeBase mem =
             Fail "Registers not populated" (Just mem)
 
         Just newBase ->
-            Next (advance { mem | base = newBase })
+            nextInstruction { mem | base = newBase }
 
 
 run : List Int -> List Int -> OpResult
@@ -369,24 +380,14 @@ run program inputs =
 
 start : List Int -> List Int -> OpResult
 start program inputs =
-    initMemory program inputs |> substep
-
-
-step : OpResult -> OpResult
-step state =
-    case state of
-        Next mem ->
-            substep (consumeRegisters { mem | instruction = ReadCode })
-
-        _ ->
-            state
+    Next (initMemory program inputs)
 
 
 runThrough : OpResult -> OpResult
 runThrough state =
     case state of
-        Next mem ->
-            runThrough (substep <| consumeRegisters { mem | instruction = ReadCode })
+        Next _ ->
+            runThrough (step state)
 
         _ ->
             state
