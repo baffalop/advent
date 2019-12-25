@@ -357,7 +357,7 @@ jumpIf func mem =
 
         value :: (jumpPos :: _) ->
             if func value then
-                Next { mem | pos = jumpPos, instruction = ReadCode }
+                Next (consumeRegisters { mem | pos = jumpPos, instruction = ReadCode })
 
             else
                 nextInstruction (consumeRegisters mem)
@@ -370,7 +370,7 @@ changeBase mem =
             Fail "Registers not populated" (Just mem)
 
         Just newBase ->
-            nextInstruction { mem | base = newBase }
+            nextInstruction (consumeRegisters { mem | base = newBase })
 
 
 run : List Int -> List Int -> OpResult
