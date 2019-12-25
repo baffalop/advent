@@ -1,7 +1,7 @@
 module Intcodes.Intcodes exposing (OpResult(..), continue, run)
 
 import Array exposing (Array)
-import Utils exposing (intsToString)
+import Utils exposing (flip, intsToString)
 
 
 type Opcode
@@ -22,6 +22,25 @@ type Mode
     = Immediate
     | Position
     | Relative
+
+
+type alias Memory =
+    { ar : Array Int
+    , pos : Int
+    , base : Int
+    , input : List Int
+    , output : List Int
+    }
+
+
+initMemory : List Int -> List Int -> Memory
+initMemory program inputs =
+    { ar = Array.fromList program
+    , pos = 0
+    , base = 0
+    , input = inputs
+    , output = []
+    }
 
 
 readMode : Int -> Maybe ( Mode, Int )
@@ -117,25 +136,6 @@ readOpcode code =
             Unrecognised
 
 
-type alias Memory =
-    { ar : Array Int
-    , pos : Int
-    , base : Int
-    , input : List Int
-    , output : List Int
-    }
-
-
-initMemory : List Int -> List Int -> Memory
-initMemory program inputs =
-    { ar = Array.fromList program
-    , pos = 0
-    , base = 0
-    , input = inputs
-    , output = []
-    }
-
-
 type OpResult
     = Done { output : List Int, finalState : List Int }
     | Waiting Memory
@@ -209,34 +209,43 @@ doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode ) -> Memory -> OpResult
 doArithmetic op ( mode1, mode2 ) mem =
     let
         arg1 =
-            getValue mode1 1 mem
+            getValue mode1 (mem.pos + 1) mem
 
         arg2 =
-            getValue mode2 2 mem
+            getValue mode2 (mem.pos + 2) mem
+
+        applyOp ( x, _ ) ( y, newMem ) =
+            ( op x y, newMem )
     in
-    case Maybe.map2 op arg1 arg2 of
+    case Maybe.map2 applyOp arg1 arg2 of
         Nothing ->
             Fail "Argument out of bounds" (Just mem)
 
-        Just result ->
-            setValue 3 result mem
+        Just ( result, newMem ) ->
+            setValue 3 result newMem
 
 
-getValue : Mode -> Int -> Memory -> Maybe Int
-getValue mode offset { ar, pos, base } =
+getValue : Mode -> Int -> Memory -> Maybe ( Int, Memory )
+getValue mode pos mem =
     let
+        expandedAr =
+            expandArray mem.ar pos
+
         immediateValue =
-            Array.get (pos + offset) ar
+            Array.get pos expandedAr
+
+        nextMem =
+            { mem | ar = expandedAr }
     in
     case mode of
         Immediate ->
-            immediateValue
+            Maybe.map (flip Tuple.pair nextMem) immediateValue
 
         Position ->
-            Maybe.andThen (\i -> Array.get i ar) immediateValue
+            Maybe.andThen (\i -> getValue Immediate i nextMem) immediateValue
 
         Relative ->
-            Maybe.andThen (\i -> Array.get (base + i) ar) immediateValue
+            Maybe.andThen (\i -> getValue Immediate (mem.base + i) nextMem) immediateValue
 
 
 expandArray : Array Int -> Int -> Array Int
@@ -253,7 +262,7 @@ expandArray ar toPos =
             ar
 
         else
-            Array.append ar <| Array.repeat (toPos - size) 0
+            Array.append ar <| Array.repeat (toPos - size + 1) 0
 
 
 setValue : Int -> Int -> Memory -> OpResult
@@ -295,13 +304,13 @@ doInput mem =
 
 doOutput : Mode -> Memory -> OpResult
 doOutput mode mem =
-    case getValue mode 1 mem of
+    case getValue mode (mem.pos + 1) mem of
         Nothing ->
             Fail "Argument out of bounds" (Just mem)
 
-        Just value ->
+        Just ( value, nextMem ) ->
             doNextOpcode
-                { mem
+                { nextMem
                     | output = mem.output ++ [ value ]
                     , pos = mem.pos + 2
                 }
@@ -309,32 +318,32 @@ doOutput mode mem =
 
 jumpIf : ( Mode, Mode ) -> (Bool -> Bool) -> Memory -> OpResult
 jumpIf ( mode1, mode2 ) func mem =
-    case getValue mode1 1 mem of
+    case getValue mode1 (mem.pos + 1) mem of
         Nothing ->
             Fail "Argument out of bounds" (Just mem)
 
-        Just value ->
+        Just ( value, newMem ) ->
             if func (value /= 0) then
-                case getValue mode2 2 mem of
+                case getValue mode2 (mem.pos + 2) newMem of
                     Nothing ->
                         Fail "Argument out of bounds" (Just mem)
 
-                    Just v ->
-                        doNextOpcode { mem | pos = v }
+                    Just ( v, nextMem ) ->
+                        doNextOpcode { nextMem | pos = v }
 
             else
-                doNextOpcode { mem | pos = mem.pos + 3 }
+                doNextOpcode { newMem | pos = newMem.pos + 3 }
 
 
 changeBase : Mode -> Memory -> OpResult
 changeBase mode mem =
-    case getValue mode 1 mem of
+    case getValue mode (mem.pos + 1) mem of
         Nothing ->
             Fail "Argument out of bounds" (Just mem)
 
-        Just newBase ->
+        Just ( newBase, nextMem ) ->
             doNextOpcode
-                { mem
+                { nextMem
                     | base = newBase
                     , pos = mem.pos + 2
                 }
