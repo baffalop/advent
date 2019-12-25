@@ -56,6 +56,9 @@ runAmpCycle input amps =
                 Fail _ _ ->
                     ( input, [ result ] )
 
+                Next mem ->
+                    ( 0, [ Fail "Got ourselves into a Next state somehow" (Just mem) ] )
+
                 Waiting { output } ->
                     next output result rest
 

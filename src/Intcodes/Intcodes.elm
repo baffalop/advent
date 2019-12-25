@@ -1,18 +1,15 @@
-module Intcodes.Intcodes exposing (OpResult(..), continue, run)
+module Intcodes.Intcodes exposing (OpResult(..), continue, run, start, step)
 
 import Array exposing (Array)
-import Utils exposing (flip, intsToString)
+import Utils exposing (intsToString)
 
 
-type Opcode
-    = Add ( Mode, Mode )
-    | Mult ( Mode, Mode )
+type Instruction
+    = ReadCode
+    | Arithmetic (Int -> Int -> Int) ( Mode, Mode )
     | Input
     | Output Mode
-    | JumpIfTrue ( Mode, Mode )
-    | JumpIfFalse ( Mode, Mode )
-    | LessThan ( Mode, Mode )
-    | Equals ( Mode, Mode )
+    | JumpIf (Int -> Bool) ( Mode, Mode )
     | ChangeBase Mode
     | Halt
     | Unrecognised
@@ -30,7 +27,16 @@ type alias Memory =
     , base : Int
     , input : List Int
     , output : List Int
+    , instruction : Instruction
+    , registers : List Int
     }
+
+
+type OpResult
+    = Done { output : List Int, finalState : List Int }
+    | Next Memory
+    | Waiting Memory
+    | Fail String (Maybe Memory)
 
 
 initMemory : List Int -> List Int -> Memory
@@ -40,24 +46,134 @@ initMemory program inputs =
     , base = 0
     , input = inputs
     , output = []
+    , instruction = ReadCode
+    , registers = []
     }
+
+
+advance : Memory -> Memory
+advance mem =
+    { mem | pos = mem.pos + 1 }
+
+
+consumeRegisters : Memory -> Memory
+consumeRegisters mem =
+    { mem | registers = [] }
+
+
+consumeInput : Memory -> Memory
+consumeInput mem =
+    { mem | input = List.tail mem.input |> Maybe.withDefault [] }
+
+
+expand : Int -> Array Int -> Array Int
+expand toPos ar =
+    if toPos < 0 then
+        ar
+
+    else
+        let
+            size =
+                Array.length ar
+        in
+        if size > toPos then
+            ar
+
+        else
+            Array.append ar <| Array.repeat (toPos - size + 1) 0
+
+
+substep : Memory -> OpResult
+substep mem =
+    let
+        { pos, ar, instruction, registers } =
+            mem
+    in
+    case instruction of
+        Unrecognised ->
+            Fail "Unrecognised Opcode" (Just mem)
+
+        Halt ->
+            Done
+                { output = mem.output
+                , finalState = Array.toList ar
+                }
+
+        ReadCode ->
+            doReadCode mem
+
+        Arithmetic f ( mode1, mode2 ) ->
+            case List.length registers of
+                0 ->
+                    getValue mode1 pos mem
+
+                1 ->
+                    getValue mode2 pos mem
+
+                _ ->
+                    doArithmetic f mem
+
+        JumpIf f ( mode1, mode2 ) ->
+            case List.length registers of
+                0 ->
+                    getValue mode1 pos mem
+
+                1 ->
+                    getValue mode2 pos mem
+
+                _ ->
+                    jumpIf f mem
+
+        Input ->
+            doInput mem
+
+        Output mode ->
+            case List.length registers of
+                0 ->
+                    getValue mode pos mem
+
+                _ ->
+                    doOutput mem
+
+        ChangeBase mode ->
+            case List.length registers of
+                0 ->
+                    getValue mode pos mem
+
+                _ ->
+                    changeBase mem
+
+
+doReadCode : Memory -> OpResult
+doReadCode mem =
+    case Array.get mem.pos mem.ar of
+        Nothing ->
+            Fail "Opcode out of bounds" (Just mem)
+
+        Just code ->
+            case readOpcode code of
+                Unrecognised ->
+                    Fail ("Unrecognised code " ++ String.fromInt code) (Just mem)
+
+                instruction ->
+                    substep (advance { mem | instruction = instruction })
 
 
 readMode : Int -> Maybe ( Mode, Int )
 readMode n =
     let
-        next =
+        nextDigit =
             n // 10
     in
     case modBy 10 n of
         0 ->
-            Just ( Position, next )
+            Just ( Position, nextDigit )
 
         1 ->
-            Just ( Immediate, next )
+            Just ( Immediate, nextDigit )
 
         2 ->
-            Just ( Relative, next )
+            Just ( Relative, nextDigit )
 
         _ ->
             Nothing
@@ -76,7 +192,7 @@ read2Modes n =
         |> Maybe.map (Tuple.mapBoth Tuple.first Tuple.first)
 
 
-readOpcode : Int -> Opcode
+readOpcode : Int -> Instruction
 readOpcode code =
     let
         op =
@@ -100,13 +216,21 @@ readOpcode code =
 
                 Just modes ->
                     construct modes
+
+        boolean operator =
+            \x y ->
+                if operator x y then
+                    1
+
+                else
+                    0
     in
     case op of
         1 ->
-            with2Modes (\m -> Add m)
+            with2Modes (\m -> Arithmetic (+) m)
 
         2 ->
-            with2Modes (\m -> Mult m)
+            with2Modes (\m -> Arithmetic (*) m)
 
         3 ->
             Input
@@ -115,16 +239,16 @@ readOpcode code =
             with1Mode (\m -> Output m)
 
         5 ->
-            with2Modes (\m -> JumpIfTrue m)
+            with2Modes (\m -> JumpIf ((==) 1) m)
 
         6 ->
-            with2Modes (\m -> JumpIfFalse m)
+            with2Modes (\m -> JumpIf ((==) 0) m)
 
         7 ->
-            with2Modes (\m -> LessThan m)
+            with2Modes (\m -> Arithmetic (boolean (<)) m)
 
         8 ->
-            with2Modes (\m -> Equals m)
+            with2Modes (\m -> Arithmetic (boolean (==)) m)
 
         9 ->
             with1Mode (\m -> ChangeBase m)
@@ -136,160 +260,59 @@ readOpcode code =
             Unrecognised
 
 
-type OpResult
-    = Done { output : List Int, finalState : List Int }
-    | Waiting Memory
-    | Fail String (Maybe Memory)
+doArithmetic : (Int -> Int -> Int) -> Memory -> OpResult
+doArithmetic op mem =
+    case mem.registers of
+        [] ->
+            Fail "Registers are not populated" (Just mem)
+
+        _ :: [] ->
+            Fail "Registers are not populated" (Just mem)
+
+        x :: (y :: _) ->
+            setValue (op x y) mem
 
 
-doNextOpcode : Memory -> OpResult
-doNextOpcode mem =
-    case Array.get mem.pos mem.ar of
-        Nothing ->
-            Fail "Opcode out of bounds" (Just mem)
-
-        Just code ->
-            case readOpcode code of
-                Unrecognised ->
-                    Fail ("Unrecognised code " ++ String.fromInt code) (Just mem)
-
-                Halt ->
-                    Done
-                        { output = mem.output
-                        , finalState = Array.toList mem.ar
-                        }
-
-                Add modes ->
-                    doArithmetic (+) modes mem
-
-                Mult modes ->
-                    doArithmetic (*) modes mem
-
-                Input ->
-                    doInput mem
-
-                Output mode ->
-                    doOutput mode mem
-
-                JumpIfTrue modes ->
-                    jumpIf modes identity mem
-
-                JumpIfFalse modes ->
-                    jumpIf modes not mem
-
-                LessThan modes ->
-                    doArithmetic
-                        (\x y ->
-                            if x < y then
-                                1
-
-                            else
-                                0
-                        )
-                        modes
-                        mem
-
-                Equals modes ->
-                    doArithmetic
-                        (\x y ->
-                            if x == y then
-                                1
-
-                            else
-                                0
-                        )
-                        modes
-                        mem
-
-                ChangeBase mode ->
-                    changeBase mode mem
-
-
-doArithmetic : (Int -> Int -> Int) -> ( Mode, Mode ) -> Memory -> OpResult
-doArithmetic op ( mode1, mode2 ) mem =
-    let
-        arg1 =
-            getValue mode1 (mem.pos + 1) mem
-
-        arg2 =
-            getValue mode2 (mem.pos + 2) mem
-
-        applyOp ( x, _ ) ( y, newMem ) =
-            ( op x y, newMem )
-    in
-    case Maybe.map2 applyOp arg1 arg2 of
-        Nothing ->
-            Fail "Argument out of bounds" (Just mem)
-
-        Just ( result, newMem ) ->
-            setValue 3 result newMem
-
-
-getValue : Mode -> Int -> Memory -> Maybe ( Int, Memory )
+getValue : Mode -> Int -> Memory -> OpResult
 getValue mode pos mem =
     let
         expandedAr =
-            expandArray mem.ar pos
+            expand pos mem.ar
+
+        newMem =
+            { mem | ar = expandedAr }
 
         immediateValue =
             Array.get pos expandedAr
-
-        nextMem =
-            { mem | ar = expandedAr }
     in
-    case mode of
-        Immediate ->
-            Maybe.map (flip Tuple.pair nextMem) immediateValue
-
-        Position ->
-            Maybe.andThen (\i -> getValue Immediate i nextMem) immediateValue
-
-        Relative ->
-            Maybe.andThen (\i -> getValue Immediate (mem.base + i) nextMem) immediateValue
-
-
-expandArray : Array Int -> Int -> Array Int
-expandArray ar toPos =
-    if toPos < 0 then
-        ar
-
-    else
-        let
-            size =
-                Array.length ar
-        in
-        if size > toPos then
-            ar
-
-        else
-            Array.append ar <| Array.repeat (toPos - size + 1) 0
-
-
-setValue : Int -> Int -> Memory -> OpResult
-setValue offset val mem =
-    let
-        pos =
-            mem.pos + offset
-
-        writePosition =
-            Array.get pos mem.ar
-    in
-    case writePosition of
+    case immediateValue of
         Nothing ->
-            Fail "Param out of bounds" (Just mem)
+            Fail "Argument out of bounds" (Just newMem)
+
+        Just value ->
+            case mode of
+                Immediate ->
+                    { newMem | registers = mem.registers ++ [ value ] } |> advance |> substep
+
+                Position ->
+                    getValue Immediate value newMem
+
+                Relative ->
+                    getValue Immediate (mem.base + value) newMem
+
+
+setValue : Int -> Memory -> OpResult
+setValue val mem =
+    case Array.get mem.pos mem.ar of
+        Nothing ->
+            Fail "Argument out of bounds" (Just mem)
 
         Just i ->
             if i < 0 then
                 Fail "Write position is negative" (Just mem)
 
             else
-                doNextOpcode
-                    { mem
-                        | ar =
-                            Array.set i val <|
-                                expandArray mem.ar i
-                        , pos = pos + 1
-                    }
+                Next (advance { mem | ar = Array.set i val <| expand i mem.ar })
 
 
 doInput : Memory -> OpResult
@@ -299,71 +322,89 @@ doInput mem =
             Waiting mem
 
         x :: xs ->
-            setValue 1 x { mem | input = xs }
+            setValue x { mem | input = xs }
 
 
-doOutput : Mode -> Memory -> OpResult
-doOutput mode mem =
-    case getValue mode (mem.pos + 1) mem of
+doOutput : Memory -> OpResult
+doOutput mem =
+    case List.head mem.registers of
         Nothing ->
-            Fail "Argument out of bounds" (Just mem)
+            Fail "Registers not populated" (Just mem)
 
-        Just ( value, nextMem ) ->
-            doNextOpcode
-                { nextMem
-                    | output = mem.output ++ [ value ]
-                    , pos = mem.pos + 2
-                }
+        Just value ->
+            Next { mem | output = mem.output ++ [ value ] }
 
 
-jumpIf : ( Mode, Mode ) -> (Bool -> Bool) -> Memory -> OpResult
-jumpIf ( mode1, mode2 ) func mem =
-    case getValue mode1 (mem.pos + 1) mem of
-        Nothing ->
-            Fail "Argument out of bounds" (Just mem)
+jumpIf : (Int -> Bool) -> Memory -> OpResult
+jumpIf func mem =
+    case mem.registers of
+        [] ->
+            Fail "Registers not populated" (Just mem)
 
-        Just ( value, newMem ) ->
-            if func (value /= 0) then
-                case getValue mode2 (mem.pos + 2) newMem of
-                    Nothing ->
-                        Fail "Argument out of bounds" (Just mem)
+        _ :: [] ->
+            Fail "Registers not populated" (Just mem)
 
-                    Just ( v, nextMem ) ->
-                        doNextOpcode { nextMem | pos = v }
+        value :: (jumpPos :: _) ->
+            if func value then
+                Next { mem | pos = jumpPos }
 
             else
-                doNextOpcode { newMem | pos = newMem.pos + 3 }
+                Next (advance mem)
 
 
-changeBase : Mode -> Memory -> OpResult
-changeBase mode mem =
-    case getValue mode (mem.pos + 1) mem of
+changeBase : Memory -> OpResult
+changeBase mem =
+    case List.head mem.registers of
         Nothing ->
-            Fail "Argument out of bounds" (Just mem)
+            Fail "Registers not populated" (Just mem)
 
-        Just ( newBase, nextMem ) ->
-            doNextOpcode
-                { nextMem
-                    | base = newBase
-                    , pos = mem.pos + 2
-                }
+        Just newBase ->
+            Next (advance { mem | base = newBase })
 
 
 run : List Int -> List Int -> OpResult
 run program inputs =
-    initMemory program inputs |> doNextOpcode
+    start program inputs |> runThrough
+
+
+start : List Int -> List Int -> OpResult
+start program inputs =
+    initMemory program inputs |> substep
+
+
+step : OpResult -> OpResult
+step state =
+    case state of
+        Next mem ->
+            substep (consumeRegisters { mem | instruction = ReadCode })
+
+        _ ->
+            state
+
+
+runThrough : OpResult -> OpResult
+runThrough state =
+    case state of
+        Next mem ->
+            runThrough (substep <| consumeRegisters { mem | instruction = ReadCode })
+
+        _ ->
+            state
 
 
 continue : OpResult -> List Int -> OpResult
 continue state input =
     case state of
         Waiting mem ->
-            doInput { mem | input = input }
+            runThrough <| doInput { mem | input = input }
+
+        Next _ ->
+            runThrough state
 
         Done { output } ->
             Fail
                 ("Already Done, with output " ++ intsToString output)
                 Nothing
 
-        _ ->
+        Fail _ _ ->
             state
