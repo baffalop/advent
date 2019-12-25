@@ -1,15 +1,16 @@
 module Intcodes.Intcodes exposing (OpResult(..), continue, run, start, step)
 
 import Array exposing (Array)
+import BigInt exposing (BigInt, add, gt, lt, mul)
 import Utils exposing (intsToString)
 
 
 type Instruction
     = ReadCode
-    | Arithmetic (Int -> Int -> Int) ( Mode, Mode )
+    | Arithmetic (BigInt -> BigInt -> BigInt) ( Mode, Mode )
     | Input
     | Output Mode
-    | JumpIf (Int -> Bool) ( Mode, Mode )
+    | JumpIf (BigInt -> Bool) ( Mode, Mode )
     | ChangeBase Mode
     | Halt
     | Unrecognised
@@ -22,18 +23,19 @@ type Mode
 
 
 type alias Memory =
-    { ar : Array Int
+    { ar : Array BigInt
     , pos : Int
     , base : Int
     , input : List Int
     , output : List Int
     , instruction : Instruction
-    , registers : List Int
+    , registers : List BigInt
+    , value : Maybe BigInt
     }
 
 
 type OpResult
-    = Done { output : List Int, finalState : List Int }
+    = Done { output : List Int, finalState : List BigInt }
     | Next Memory
     | Waiting Memory
     | Fail String (Maybe Memory)
@@ -41,19 +43,20 @@ type OpResult
 
 initMemory : List Int -> List Int -> Memory
 initMemory program inputs =
-    { ar = Array.fromList program
+    { ar = Array.fromList <| List.map BigInt.fromInt program
     , pos = 0
     , base = 0
     , input = inputs
     , output = []
     , instruction = ReadCode
     , registers = []
+    , value = List.head program |> Maybe.map BigInt.fromInt
     }
 
 
 next : Memory -> OpResult
 next mem =
-    Next { mem | pos = mem.pos + 1 }
+    Next { mem | pos = mem.pos + 1, value = Array.get (mem.pos + 1) mem.ar }
 
 
 consumeRegisters : Memory -> Memory
@@ -61,12 +64,12 @@ consumeRegisters mem =
     { mem | registers = [] }
 
 
-nextInstruction : Memory -> OpResult
+nextInstruction : Memory -> Memory
 nextInstruction mem =
-    next { mem | instruction = ReadCode }
+    { mem | instruction = ReadCode }
 
 
-expand : Int -> Array Int -> Array Int
+expand : Int -> Array BigInt -> Array BigInt
 expand toPos ar =
     if toPos < 0 then
         ar
@@ -80,7 +83,7 @@ expand toPos ar =
             ar
 
         else
-            Array.append ar <| Array.repeat (toPos - size + 1) 0
+            Array.append ar <| Array.repeat (toPos - size + 1) (BigInt.fromInt 0)
 
 
 step : OpResult -> OpResult
@@ -149,6 +152,20 @@ step state =
             state
 
 
+toInt : BigInt -> Maybe Int
+toInt n =
+    if gt n (BigInt.fromInt 9007199254740991) then
+        Nothing
+
+    else
+        n |> BigInt.toString |> String.toInt
+
+
+eq : BigInt -> BigInt -> Bool
+eq x y =
+    not (lt x y) && not (gt x y)
+
+
 doReadCode : Memory -> OpResult
 doReadCode mem =
     case Array.get mem.pos mem.ar of
@@ -156,12 +173,17 @@ doReadCode mem =
             Fail "Opcode out of bounds" (Just mem)
 
         Just code ->
-            case readOpcode code of
-                Unrecognised ->
-                    Fail ("Unrecognised code " ++ String.fromInt code) (Just mem)
+            case toInt code of
+                Nothing ->
+                    Fail ("Code is to large: " ++ BigInt.toString code) (Just mem)
 
-                instruction ->
-                    next { mem | instruction = instruction }
+                Just intCode ->
+                    case readOpcode intCode of
+                        Unrecognised ->
+                            Fail ("Unrecognised code " ++ BigInt.toString code) (Just mem)
+
+                        instruction ->
+                            next { mem | instruction = instruction }
 
 
 readMode : Int -> Maybe ( Mode, Int )
@@ -225,17 +247,17 @@ readOpcode code =
         boolean operator =
             \x y ->
                 if operator x y then
-                    1
+                    BigInt.fromInt 1
 
                 else
-                    0
+                    BigInt.fromInt 0
     in
     case op of
         1 ->
-            with2Modes (\m -> Arithmetic (+) m)
+            with2Modes (\m -> Arithmetic add m)
 
         2 ->
-            with2Modes (\m -> Arithmetic (*) m)
+            with2Modes (\m -> Arithmetic mul m)
 
         3 ->
             Input
@@ -244,16 +266,16 @@ readOpcode code =
             with1Mode (\m -> Output m)
 
         5 ->
-            with2Modes (\m -> JumpIf ((==) 1) m)
+            with2Modes (\m -> JumpIf (eq (BigInt.fromInt 0) >> not) m)
 
         6 ->
-            with2Modes (\m -> JumpIf ((==) 0) m)
+            with2Modes (\m -> JumpIf (eq (BigInt.fromInt 0)) m)
 
         7 ->
-            with2Modes (\m -> Arithmetic (boolean (<)) m)
+            with2Modes (\m -> Arithmetic (boolean lt) m)
 
         8 ->
-            with2Modes (\m -> Arithmetic (boolean (==)) m)
+            with2Modes (\m -> Arithmetic (boolean eq) m)
 
         9 ->
             with1Mode (\m -> ChangeBase m)
@@ -265,7 +287,7 @@ readOpcode code =
             Unrecognised
 
 
-doArithmetic : (Int -> Int -> Int) -> Memory -> OpResult
+doArithmetic : (BigInt -> BigInt -> BigInt) -> Memory -> OpResult
 doArithmetic op mem =
     case mem.registers of
         [] ->
@@ -289,6 +311,14 @@ getValue mode pos mem =
 
         immediateValue =
             Array.get pos expandedAr
+
+        intMap func val =
+            case toInt val of
+                Nothing ->
+                    Fail "Positional value too big" (Just mem)
+
+                Just nextPos ->
+                    func nextPos
     in
     case immediateValue of
         Nothing ->
@@ -300,24 +330,35 @@ getValue mode pos mem =
                     next { newMem | registers = mem.registers ++ [ value ] }
 
                 Position ->
-                    getValue Immediate value newMem
+                    intMap (\v -> getValue Immediate v newMem) value
 
                 Relative ->
-                    getValue Immediate (mem.base + value) newMem
+                    intMap (\v -> getValue Immediate (mem.base + v) newMem) value
 
 
-setValue : Int -> Memory -> OpResult
+setValue : BigInt -> Memory -> OpResult
 setValue val mem =
     case Array.get mem.pos mem.ar of
         Nothing ->
             Fail "Argument out of bounds" (Just mem)
 
         Just i ->
-            if i < 0 then
-                Fail "Write position is negative" (Just mem)
+            case toInt i of
+                Nothing ->
+                    Fail "Write position is too big" (Just mem)
 
-            else
-                nextInstruction { mem | ar = Array.set i val <| expand i mem.ar }
+                Just writePos ->
+                    if writePos < 0 then
+                        Fail "Write position is negative" (Just mem)
+
+                    else
+                        next <|
+                            nextInstruction
+                                { mem
+                                    | ar =
+                                        Array.set writePos val <|
+                                            expand writePos mem.ar
+                                }
 
 
 doInput : Memory -> OpResult
@@ -327,7 +368,7 @@ doInput mem =
             Waiting mem
 
         x :: xs ->
-            setValue x { mem | input = xs }
+            setValue (BigInt.fromInt x) { mem | input = xs }
 
 
 doOutput : Memory -> OpResult
@@ -337,16 +378,21 @@ doOutput mem =
             Fail "Registers not populated" (Just mem)
 
         Just value ->
-            Next
-                (consumeRegisters
-                    { mem
-                        | output = mem.output ++ [ value ]
-                        , instruction = ReadCode
-                    }
-                )
+            case toInt value of
+                Nothing ->
+                    Fail "Value is too big to output" (Just mem)
+
+                Just v ->
+                    Next
+                        (consumeRegisters
+                            { mem
+                                | output = mem.output ++ [ v ]
+                                , instruction = ReadCode
+                            }
+                        )
 
 
-jumpIf : (Int -> Bool) -> Memory -> OpResult
+jumpIf : (BigInt -> Bool) -> Memory -> OpResult
 jumpIf func mem =
     case mem.registers of
         [] ->
@@ -357,10 +403,15 @@ jumpIf func mem =
 
         value :: (jumpPos :: _) ->
             if func value then
-                Next (consumeRegisters { mem | pos = jumpPos, instruction = ReadCode })
+                case toInt jumpPos of
+                    Nothing ->
+                        Fail "Jump-to position too big" (Just mem)
+
+                    Just jumpPosInt ->
+                        Next (nextInstruction <| consumeRegisters { mem | pos = jumpPosInt })
 
             else
-                nextInstruction (consumeRegisters mem)
+                Next (consumeRegisters { mem | instruction = ReadCode })
 
 
 changeBase : Memory -> OpResult
@@ -369,8 +420,13 @@ changeBase mem =
         Nothing ->
             Fail "Registers not populated" (Just mem)
 
-        Just newBase ->
-            nextInstruction (consumeRegisters { mem | base = newBase })
+        Just value ->
+            case toInt value of
+                Nothing ->
+                    Fail "New base too big" (Just mem)
+
+                Just newBase ->
+                    Next (nextInstruction <| consumeRegisters { mem | base = newBase })
 
 
 run : List Int -> List Int -> OpResult
