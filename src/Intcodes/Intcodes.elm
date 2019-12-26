@@ -2,7 +2,7 @@ module Intcodes.Intcodes exposing (Instruction(..), Memory, OpResult(..), contin
 
 import Array exposing (Array)
 import BigInt exposing (BigInt, add, gt, lt, mul)
-import Utils exposing (intsToString)
+import Utils exposing (flip, intsToString)
 
 
 type Instruction
@@ -30,7 +30,9 @@ type alias Memory =
     , output : List Int
     , instruction : Instruction
     , registers : List BigInt
-    , value : Maybe BigInt
+    , immediateValue : Maybe BigInt
+    , positionalValue : Maybe BigInt
+    , relativeValue : Maybe BigInt
     }
 
 
@@ -50,13 +52,28 @@ initMemory program inputs =
     , output = []
     , instruction = ReadCode
     , registers = []
-    , value = List.head program |> Maybe.map BigInt.fromInt
+    , immediateValue = List.head program |> Maybe.map BigInt.fromInt
+    , positionalValue = Nothing
+    , relativeValue = Nothing
     }
 
 
 next : Memory -> OpResult
 next mem =
-    Next { mem | pos = mem.pos + 1, value = Array.get (mem.pos + 1) mem.ar }
+    let
+        value =
+            Array.get (mem.pos + 1) mem.ar
+
+        intValue =
+            Maybe.andThen toInt value
+    in
+    Next
+        { mem
+            | pos = mem.pos + 1
+            , immediateValue = value
+            , positionalValue = Maybe.andThen (flip Array.get mem.ar) intValue
+            , relativeValue = Maybe.andThen ((+) mem.base >> flip Array.get mem.ar) intValue
+        }
 
 
 consumeRegisters : Memory -> Memory

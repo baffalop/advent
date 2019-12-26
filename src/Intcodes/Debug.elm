@@ -1,4 +1,4 @@
-module Intcodes.Debug exposing (LooseInstruction(..), continueUntil, viewState)
+module Intcodes.Debug exposing (LooseInstruction(..), continueUntil, stepThrough, viewState)
 
 import Array
 import BigInt
@@ -20,7 +20,9 @@ type alias VMemory =
     , output : List Int
     , instruction : Instruction
     , registers : List String
-    , value : Maybe String
+    , immediateValue : Maybe String
+    , positionalValue : Maybe String
+    , relativeValue : Maybe String
     }
 
 
@@ -34,7 +36,7 @@ type LooseInstruction
 
 
 viewMemory : Memory -> VMemory
-viewMemory { ar, pos, base, input, output, instruction, registers, value } =
+viewMemory { ar, pos, base, input, output, instruction, registers, immediateValue, positionalValue, relativeValue } =
     { ar = Array.toList ar |> List.map BigInt.toString
     , pos = pos
     , base = base
@@ -42,7 +44,9 @@ viewMemory { ar, pos, base, input, output, instruction, registers, value } =
     , output = output
     , instruction = instruction
     , registers = List.map BigInt.toString registers
-    , value = Maybe.map BigInt.toString value
+    , immediateValue = Maybe.map BigInt.toString immediateValue
+    , positionalValue = Maybe.map BigInt.toString positionalValue
+    , relativeValue = Maybe.map BigInt.toString relativeValue
     }
 
 
@@ -106,3 +110,16 @@ continueUntil instruction state =
 
         _ ->
             nextState
+
+
+stepThrough : Int -> OpResult -> ViewableOpResult
+stepThrough n state =
+    case n of
+        0 ->
+            state |> viewState
+
+        1 ->
+            step state |> viewState
+
+        _ ->
+            stepThrough (n - 1) (step state)
