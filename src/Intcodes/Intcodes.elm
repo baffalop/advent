@@ -482,8 +482,8 @@ changeBase mem =
                 Nothing ->
                     Fail "New base too big" (Just mem)
 
-                Just newBase ->
-                    Next (nextInstruction <| consumeRegisters { mem | base = newBase })
+                Just baseChange ->
+                    Next (nextInstruction <| consumeRegisters { mem | base = mem.base + baseChange })
 
 
 run : List Int -> List Int -> OpResult
