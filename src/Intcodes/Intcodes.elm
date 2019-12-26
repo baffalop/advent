@@ -30,6 +30,8 @@ type alias Memory =
     , output : List Int
     , instruction : Instruction
     , registers : List BigInt
+
+    -- for debugging
     , immediateValue : Maybe BigInt
     , positionalValue : Maybe BigInt
     , relativeValue : Maybe BigInt
@@ -41,6 +43,10 @@ type OpResult
     | Next Memory
     | Waiting Memory
     | Fail String (Maybe Memory)
+
+
+
+-- MEMORY
 
 
 initMemory : List Int -> List Int -> Memory
@@ -101,6 +107,33 @@ expand toPos ar =
 
         else
             Array.append ar <| Array.repeat (toPos - size + 1) (big 0)
+
+
+
+-- BIGINT HELPERS
+
+
+big : Int -> BigInt
+big =
+    BigInt.fromInt
+
+
+toInt : BigInt -> Maybe Int
+toInt n =
+    if gt n (big 9007199254740991) then
+        Nothing
+
+    else
+        n |> BigInt.toString |> String.toInt
+
+
+eq : BigInt -> BigInt -> Bool
+eq x y =
+    not (lt x y) && not (gt x y)
+
+
+
+-- COMPUTER LOGIC
 
 
 step : OpResult -> OpResult
@@ -167,25 +200,6 @@ step state =
 
         _ ->
             state
-
-
-big : Int -> BigInt
-big =
-    BigInt.fromInt
-
-
-toInt : BigInt -> Maybe Int
-toInt n =
-    if gt n (big 9007199254740991) then
-        Nothing
-
-    else
-        n |> BigInt.toString |> String.toInt
-
-
-eq : BigInt -> BigInt -> Bool
-eq x y =
-    not (lt x y) && not (gt x y)
 
 
 doReadCode : Memory -> OpResult
@@ -486,14 +500,18 @@ changeBase mem =
                     Next (nextInstruction <| consumeRegisters { mem | base = mem.base + baseChange })
 
 
-run : List Int -> List Int -> OpResult
-run program inputs =
-    start program inputs |> runThrough
+
+-- PROGRAM CONTROL
 
 
 start : List Int -> List Int -> OpResult
 start program inputs =
     Next (initMemory program inputs)
+
+
+run : List Int -> List Int -> OpResult
+run program inputs =
+    start program inputs |> runThrough
 
 
 runThrough : OpResult -> OpResult
