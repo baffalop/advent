@@ -9,34 +9,47 @@
             background-color: #182431;
         }
 
-        .map {
-            margin: 100px;
+        .area {
+            margin: 60px;
             padding: 30px;
             width: 600px;
-            height: 600px;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: start;
-            align-items: start;
             background-color: #203142;
         }
 
-        .cell {
-            border: 1px darkgrey dashed;
-            width: 19%;
-            height: 19%;
-            margin: -1px;
-            padding: 2px;
-
-            display: grid;
-            grid-template-rows: auto 25% auto;
-            grid-template-columns: auto 25% auto;
+        .form {
+            height: 25px;
         }
 
-        .subcell {
-            margin: 2px;
-            border: 2px seagreen solid;
-            background-color: rgba(46, 139, 87, 0.2);
+        input[type="text"], textarea {
+            background-color: #182431;
+            border: 2px #54687b solid;
+            font: 11pt monospace;
+            color: #a8b5bf;
+            height: 2em;
+            width: 540px;
+        }
+
+        button[type="submit"] {
+            visibility: collapse;
+        }
+
+        .map-container {
+            height: 600px;
+            overflow: auto;
+        }
+
+        table.map {
+            border: 1px #54687b dashed;
+            border-collapse: collapse;
+        }
+
+        .map tr {
+            height: 40px;
+        }
+
+        .map td {
+            border: 1px #54687b dashed;
+            width: 40px;
         }
 
         .line {
@@ -61,283 +74,192 @@
 </head>
 <body>
 
-<div class="map">
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="cell">
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-        <div class="subcell"></div>
-    </div>
-    <div class="line"></div>
+<div class="area form">
+    <input type="text" placeholder="Universal Orbital Map here..." />
+    <button type="submit">Map</button>
+</div>
+
+<div class="area map-container">
+    <table class="map">
+        <tbody>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
 
 </div>
 </body>
