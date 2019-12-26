@@ -1,4 +1,4 @@
-module Intcodes.Intcodes exposing (OpResult(..), continue, run, start, step)
+module Intcodes.Intcodes exposing (Instruction(..), Memory, OpResult(..), continue, run, start, step)
 
 import Array exposing (Array)
 import BigInt exposing (BigInt, add, gt, lt, mul)
@@ -7,8 +7,8 @@ import Utils exposing (intsToString)
 
 type Instruction
     = ReadCode
-    | Arithmetic (BigInt -> BigInt -> BigInt) ( Mode, Mode )
-    | Input
+    | Arithmetic (BigInt -> BigInt -> BigInt) ( Mode, Mode, Mode )
+    | Input Mode
     | Output Mode
     | JumpIf (BigInt -> Bool) ( Mode, Mode )
     | ChangeBase Mode
@@ -83,7 +83,7 @@ expand toPos ar =
             ar
 
         else
-            Array.append ar <| Array.repeat (toPos - size + 1) (BigInt.fromInt 0)
+            Array.append ar <| Array.repeat (toPos - size + 1) (big 0)
 
 
 step : OpResult -> OpResult
@@ -107,7 +107,7 @@ step state =
                 ReadCode ->
                     doReadCode mem
 
-                Arithmetic f ( mode1, mode2 ) ->
+                Arithmetic f ( mode1, mode2, mode3 ) ->
                     case List.length registers of
                         0 ->
                             getValue mode1 pos mem
@@ -116,7 +116,7 @@ step state =
                             getValue mode2 pos mem
 
                         _ ->
-                            doArithmetic f mem
+                            doArithmetic mode3 f mem
 
                 JumpIf f ( mode1, mode2 ) ->
                     case List.length registers of
@@ -129,8 +129,8 @@ step state =
                         _ ->
                             jumpIf f mem
 
-                Input ->
-                    doInput mem
+                Input mode ->
+                    doInput mode mem
 
                 Output mode ->
                     case List.length registers of
@@ -152,9 +152,14 @@ step state =
             state
 
 
+big : Int -> BigInt
+big =
+    BigInt.fromInt
+
+
 toInt : BigInt -> Maybe Int
 toInt n =
-    if gt n (BigInt.fromInt 9007199254740991) then
+    if gt n (big 9007199254740991) then
         Nothing
 
     else
@@ -219,6 +224,21 @@ read2Modes n =
         |> Maybe.map (Tuple.mapBoth Tuple.first Tuple.first)
 
 
+read3Modes : Int -> Maybe ( Mode, Mode, Mode )
+read3Modes n =
+    let
+        mode1 =
+            readMode n
+
+        mode2 =
+            Maybe.andThen (Tuple.second >> readMode) mode1
+
+        mode3 =
+            Maybe.andThen (Tuple.second >> readMode) mode2
+    in
+    Maybe.map3 (\( x, _ ) ( y, _ ) ( z, _ ) -> ( x, y, z )) mode1 mode2 mode3
+
+
 readOpcode : Int -> Instruction
 readOpcode code =
     let
@@ -244,38 +264,46 @@ readOpcode code =
                 Just modes ->
                     construct modes
 
+        with3Modes construct =
+            case read3Modes modesDigits of
+                Nothing ->
+                    Unrecognised
+
+                Just modes ->
+                    construct modes
+
         boolean operator =
             \x y ->
                 if operator x y then
-                    BigInt.fromInt 1
+                    big 1
 
                 else
-                    BigInt.fromInt 0
+                    big 0
     in
     case op of
         1 ->
-            with2Modes (\m -> Arithmetic add m)
+            with3Modes (\m -> Arithmetic add m)
 
         2 ->
-            with2Modes (\m -> Arithmetic mul m)
+            with3Modes (\m -> Arithmetic mul m)
 
         3 ->
-            Input
+            with1Mode (\m -> Input m)
 
         4 ->
             with1Mode (\m -> Output m)
 
         5 ->
-            with2Modes (\m -> JumpIf (eq (BigInt.fromInt 0) >> not) m)
+            with2Modes (\m -> JumpIf (eq (big 0) >> not) m)
 
         6 ->
-            with2Modes (\m -> JumpIf (eq (BigInt.fromInt 0)) m)
+            with2Modes (\m -> JumpIf (eq (big 0)) m)
 
         7 ->
-            with2Modes (\m -> Arithmetic (boolean lt) m)
+            with3Modes (\m -> Arithmetic (boolean lt) m)
 
         8 ->
-            with2Modes (\m -> Arithmetic (boolean eq) m)
+            with3Modes (\m -> Arithmetic (boolean eq) m)
 
         9 ->
             with1Mode (\m -> ChangeBase m)
@@ -287,8 +315,8 @@ readOpcode code =
             Unrecognised
 
 
-doArithmetic : (BigInt -> BigInt -> BigInt) -> Memory -> OpResult
-doArithmetic op mem =
+doArithmetic : Mode -> (BigInt -> BigInt -> BigInt) -> Memory -> OpResult
+doArithmetic mode op mem =
     case mem.registers of
         [] ->
             Fail "Registers are not populated" (Just mem)
@@ -297,7 +325,7 @@ doArithmetic op mem =
             Fail "Registers are not populated" (Just mem)
 
         x :: (y :: _) ->
-            setValue (op x y) (consumeRegisters mem)
+            setValue mode (op x y) (consumeRegisters mem)
 
 
 getValue : Mode -> Int -> Memory -> OpResult
@@ -336,14 +364,23 @@ getValue mode pos mem =
                     intMap (\v -> getValue Immediate (mem.base + v) newMem) value
 
 
-setValue : BigInt -> Memory -> OpResult
-setValue val mem =
+setValue : Mode -> BigInt -> Memory -> OpResult
+setValue mode val mem =
     case Array.get mem.pos mem.ar of
         Nothing ->
             Fail "Argument out of bounds" (Just mem)
 
         Just i ->
-            case toInt i of
+            let
+                target =
+                    case mode of
+                        Relative ->
+                            add (big mem.base) i
+
+                        _ ->
+                            i
+            in
+            case toInt target of
                 Nothing ->
                     Fail "Write position is too big" (Just mem)
 
@@ -361,14 +398,14 @@ setValue val mem =
                                 }
 
 
-doInput : Memory -> OpResult
-doInput mem =
+doInput : Mode -> Memory -> OpResult
+doInput mode mem =
     case mem.input of
         [] ->
             Waiting mem
 
         x :: xs ->
-            setValue (BigInt.fromInt x) { mem | input = xs }
+            setValue mode (big x) { mem | input = xs }
 
 
 doOutput : Memory -> OpResult
@@ -453,7 +490,7 @@ continue : OpResult -> List Int -> OpResult
 continue state input =
     case state of
         Waiting mem ->
-            runThrough <| doInput { mem | input = input }
+            runThrough <| Next { mem | input = input }
 
         Next _ ->
             runThrough state
