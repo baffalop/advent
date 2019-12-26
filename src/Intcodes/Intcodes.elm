@@ -374,11 +374,14 @@ setValue mode val mem =
             let
                 target =
                     case mode of
+                        Immediate ->
+                            big mem.pos
+
+                        Position ->
+                            i
+
                         Relative ->
                             add (big mem.base) i
-
-                        _ ->
-                            i
             in
             case toInt target of
                 Nothing ->
