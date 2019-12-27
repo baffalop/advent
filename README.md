@@ -18,3 +18,4 @@ These modules are meant to be loaded into the Elm REPL. I should document which 
 - **Day 7: Amplification Circuit** `src/Amps/`
 - **Day 8: Space Image Format** `src/Image/`
 - **Day 9: Sensor Boost** `src/Intcodes` using `Intcodes.Program.boost`
+- **Day 10: Monitoring Station** `src/Asteroids`
