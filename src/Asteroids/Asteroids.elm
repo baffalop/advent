@@ -1,6 +1,7 @@
-module Asteroids.Asteroids exposing (bestStation, parse, visibleFrom)
+module Asteroids.Asteroids exposing (bestStation, nthVaporised, parse)
 
 import Set exposing (Set)
+import Utils exposing (filterMaybes)
 
 
 type alias Coord =
@@ -35,23 +36,28 @@ findBounds asteroids =
 
 
 findOcclusions : Coord -> Coord -> Coord -> Set Coord
-findOcclusions ( a, b ) ( boundX, boundY ) ( x, y ) =
+findOcclusions ( a, b ) bounds ( x, y ) =
     let
         increment =
             reduce ( x - a, y - b )
 
         addOcclusion point occlusions =
             let
-                (( nextX, nextY ) as next) =
+                next =
                     addCoord increment point
             in
-            if nextX < 0 || nextX > boundX || nextY < 0 || nextY > boundY then
+            if outOfBounds bounds next then
                 occlusions
 
             else
                 addOcclusion next (Set.insert next occlusions)
     in
     addOcclusion ( x, y ) Set.empty
+
+
+outOfBounds : Coord -> Coord -> Bool
+outOfBounds ( boundX, boundY ) ( x, y ) =
+    x < 0 || x > boundX || y < 0 || y > boundY
 
 
 addCoord : Coord -> Coord -> Coord
@@ -115,3 +121,80 @@ bestStation asteroids =
         |> List.map2 Tuple.pair stationCandidates
         |> List.sortBy (Tuple.second >> negate)
         |> List.head
+
+
+sortTargetsClockwise : Coord -> Set Coord -> List Coord
+sortTargetsClockwise (( a, b ) as centre) asteroids =
+    let
+        possibleDirections =
+            Set.remove centre asteroids |> Set.map ((\( x, y ) -> ( x - a, y - b )) >> reduce)
+
+        sort =
+            Set.toList >> List.sortBy (\( x, y ) -> toFloat y / toFloat x)
+
+        quadrant1 =
+            Set.filter (\( x, y ) -> x >= 0 && y < 0) possibleDirections
+                |> sort
+
+        quadrant2 =
+            Set.filter (\( x, y ) -> x >= 0 && y >= 0) possibleDirections
+                |> sort
+
+        quadrant3 =
+            Set.filter (\( x, y ) -> x < 0 && y > 0) possibleDirections
+                |> sort
+
+        quadrant4 =
+            Set.filter (\( x, y ) -> x < 0 && y < 0) possibleDirections
+                |> sort
+    in
+    quadrant1 ++ quadrant2 ++ quadrant3 ++ quadrant4
+
+
+shoot : Coord -> Coord -> Set Coord -> Coord -> Maybe Coord
+shoot centre bounds asteroids direction =
+    let
+        target =
+            addCoord centre direction
+    in
+    if outOfBounds bounds target then
+        Nothing
+
+    else if Set.member target asteroids then
+        Just target
+
+    else
+        shoot target bounds asteroids direction
+
+
+nthVaporised : Coord -> Set Coord -> Int -> Maybe Coord
+nthVaporised centre asteroids n =
+    let
+        bounds =
+            findBounds asteroids
+
+        round =
+            sortTargetsClockwise centre asteroids
+
+        fireNextRound asts count =
+            let
+                astsShot =
+                    round
+                        |> List.map (shoot centre bounds asts)
+                        |> filterMaybes
+
+                countAstsShot =
+                    List.length astsShot
+            in
+            if countAstsShot < 0 then
+                Nothing
+
+            else if countAstsShot > count then
+                List.drop (count - 1) astsShot |> List.head
+
+            else
+                fireNextRound
+                    (Set.diff asts (Set.fromList astsShot))
+                    (count - countAstsShot + 1)
+    in
+    fireNextRound asteroids (n - 1)
