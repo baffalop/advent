@@ -1,5 +1,6 @@
-module Painting.Robot exposing (mapFinished, run)
+module Painting.Robot exposing (mapFinished, printPainting, run)
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Intcodes.Intcodes as Intcodes exposing (OpResult(..), consumeOutput, continue)
 
@@ -40,7 +41,7 @@ initRobot program =
         { program = Intcodes.run program []
         , heading = Up
         , location = ( 0, 0 )
-        , painted = Dict.empty
+        , painted = Dict.singleton ( 0, 0 ) White
         }
 
 
@@ -218,3 +219,61 @@ mapFinished f robot =
 
         _ ->
             Nothing
+
+
+findPaintedBounds : Dict Vector a -> ( Vector, Vector )
+findPaintedBounds painted =
+    let
+        listVectors =
+            Dict.keys painted
+
+        minCoord =
+            List.foldl (\( x, y ) ( a, b ) -> ( min x a, min y b )) ( 0, 0 ) listVectors
+
+        maxCoord =
+            List.foldl (\( x, y ) ( a, b ) -> ( max x a, max y b )) ( 0, 0 ) listVectors
+    in
+    ( minCoord, maxCoord )
+
+
+prepairCanvas : ( Vector, Vector ) -> Array (Array Char)
+prepairCanvas ( ( x1, y1 ), ( x2, y2 ) ) =
+    let
+        xRange =
+            x2 - x1 + 1
+
+        yRange =
+            y2 - y1 + 1
+    in
+    Array.repeat yRange (Array.repeat xRange '.')
+
+
+printPainting : Dict Vector Colour -> String
+printPainting painting =
+    let
+        whites =
+            Dict.filter (\_ colour -> colour == White) painting
+
+        (( ( lowerX, lowerY ), _ ) as bounds) =
+            findPaintedBounds whites
+
+        canvas =
+            prepairCanvas bounds
+
+        normalisedPoints =
+            Dict.keys whites
+                |> List.map (\( x, y ) -> ( x - lowerX, y - lowerY ))
+
+        setPoint ( x, y ) print =
+            let
+                row =
+                    Array.get y print |> Maybe.withDefault Array.empty
+            in
+            Array.set y (Array.set x '#' row) print
+    in
+    List.foldl setPoint canvas normalisedPoints
+        |> Array.map Array.toList
+        |> Array.toList
+        |> List.intersperse [ '\n' ]
+        |> List.concat
+        |> String.fromList
