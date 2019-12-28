@@ -1,4 +1,4 @@
-module Painting.Robot exposing (run)
+module Painting.Robot exposing (mapFinished, run)
 
 import Dict exposing (Dict)
 import Intcodes.Intcodes as Intcodes exposing (OpResult(..), consumeOutput, continue)
@@ -30,7 +30,7 @@ type alias RobotState =
 
 type Robot
     = Running RobotState
-    | Finished { painted : Dict Vector Colour }
+    | Finished (Dict Vector Colour)
     | Stalled String RobotState
 
 
@@ -162,7 +162,7 @@ handleOutput : RobotState -> Robot
 handleOutput ({ program } as state) =
     case program of
         Done _ ->
-            Finished { painted = state.painted }
+            Finished state.painted
 
         Fail _ _ ->
             Stalled "Intcodes failed" state
@@ -208,3 +208,13 @@ runThrough robot =
 run : List Int -> Robot
 run program =
     initRobot program |> runThrough
+
+
+mapFinished : (Dict Vector Colour -> a) -> Robot -> Maybe a
+mapFinished f robot =
+    case robot of
+        Finished painted ->
+            Just (f painted)
+
+        _ ->
+            Nothing
