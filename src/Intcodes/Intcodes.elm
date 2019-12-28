@@ -1,4 +1,4 @@
-module Intcodes.Intcodes exposing (Instruction(..), Memory, OpResult(..), continue, run, start, step)
+module Intcodes.Intcodes exposing (Instruction(..), Memory, OpResult(..), consumeOutput, continue, run, start, step)
 
 import Array exposing (Array)
 import BigInt exposing (BigInt, add, gt, lt, mul)
@@ -540,3 +540,19 @@ continue state input =
 
         Fail _ _ ->
             state
+
+
+consumeOutput : OpResult -> ( List Int, OpResult )
+consumeOutput state =
+    case state of
+        Waiting mem ->
+            ( mem.output, Waiting { mem | output = [] } )
+
+        Next mem ->
+            ( mem.output, Next { mem | output = [] } )
+
+        Done done ->
+            ( done.output, state )
+
+        Fail _ _ ->
+            ( [], state )

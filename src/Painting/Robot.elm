@@ -1,8 +1,7 @@
 module Painting.Robot exposing (run)
 
 import Dict exposing (Dict)
-import Intcodes.Intcodes as Intcodes exposing (OpResult(..), continue)
-import Utils exposing (intsToString)
+import Intcodes.Intcodes as Intcodes exposing (OpResult(..), consumeOutput, continue)
 
 
 type alias Vector =
@@ -172,21 +171,21 @@ handleOutput ({ program } as state) =
             Running { state | program = continue program [] }
                 |> andThen handleOutput
 
-        Waiting ({ output } as programState) ->
-            case output of
-                paintInstruction :: turnInstruction :: [] ->
-                    Running { state | program = Waiting { programState | output = [] } }
+        Waiting _ ->
+            case consumeOutput program of
+                ( paintInstruction :: turnInstruction :: [], newProgram ) ->
+                    Running { state | program = newProgram }
                         |> andThen (paint paintInstruction)
                         |> andThen (turn turnInstruction)
 
-                _ :: _ :: _ ->
-                    Stalled ("Received too many outputs " ++ intsToString output) state
+                ( _ :: _ :: _, _ ) ->
+                    Stalled "Received too many outputs" state
 
-                x :: [] ->
-                    Stalled ("Only received one output " ++ String.fromInt x) state
+                ( x :: [], _ ) ->
+                    Stalled ("Received only one output " ++ String.fromInt x) state
 
-                [] ->
-                    Stalled "No output" state
+                ( [], _ ) ->
+                    Stalled "Received no output" state
 
 
 step : Robot -> Robot
