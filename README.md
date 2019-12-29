@@ -20,3 +20,4 @@ These modules are meant to be loaded into the Elm REPL. I should document which 
 - **Day 9: Sensor Boost** `src/Intcodes` using `Intcodes.Program.boost`
 - **Day 10: Monitoring Station** `src/Asteroids`
 - **Day 11: Space Police** `src/Painting`
+- **Day 12: The N-Body Problem** `src/Jupiter`
