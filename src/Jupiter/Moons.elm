@@ -1,4 +1,4 @@
-module Jupiter.Moons exposing (calculateTotalEnergy, makeMoons, nSteps, step)
+module Jupiter.Moons exposing (calculateTotalEnergy, makeMoons, nSteps, step, tuplesToMoons, whenDoesRepeat)
 
 
 type alias Vector =
@@ -27,6 +27,12 @@ makeMoons =
             , velocity = stationary
             }
         )
+
+
+tuplesToMoons : List ( Int, Int, Int ) -> List Moon
+tuplesToMoons =
+    List.map (\( x, y, z ) -> { x = x, y = y, z = z })
+        >> makeMoons
 
 
 mapVectors : (Int -> Int -> Int) -> Vector -> Vector -> Vector
@@ -111,3 +117,16 @@ calculateTotalEnergy moons =
     in
     List.map2 (*) potentialEnergies kineticEnergies
         |> List.sum
+
+
+whenDoesRepeat : List Moon -> Int
+whenDoesRepeat moons =
+    let
+        matchState state count current =
+            if current == state then
+                count
+
+            else
+                matchState state (count + 1) (step current)
+    in
+    matchState moons 1 (step moons)
