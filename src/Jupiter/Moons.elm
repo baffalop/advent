@@ -1,4 +1,13 @@
-module Jupiter.Moons exposing (calculateTotalEnergy, makeMoons, nSteps, step, tuplesToMoons, whenDoesRepeat)
+module Jupiter.Moons exposing
+    ( calculateTotalEnergy
+    , makeAxes
+    , makeMoons
+    , nSteps
+    , repetitionAxiswise
+    , step
+    , tuplesToMoons
+    , whenDoesRepeat
+    )
 
 
 type alias Vector =
@@ -130,3 +139,103 @@ whenDoesRepeat moons =
                 matchState state (count + 1) (step current)
     in
     matchState moons 1 (step moons)
+
+
+type alias Axis =
+    List
+        { position : Int
+        , velocity : Int
+        , id : Int
+        }
+
+
+type alias Axes =
+    { x : Axis
+    , y : Axis
+    , z : Axis
+    }
+
+
+makeAxes : List Vector -> Axes
+makeAxes moons =
+    let
+        extractAxis extractor i moon =
+            { position = extractor moon
+            , velocity = 0
+            , id = i
+            }
+    in
+    { x = List.indexedMap (extractAxis .x) moons
+    , y = List.indexedMap (extractAxis .y) moons
+    , z = List.indexedMap (extractAxis .z) moons
+    }
+
+
+applyGravityInAxis : Axis -> Axis
+applyGravityInAxis axis =
+    List.map
+        (\val ->
+            { val
+                | velocity =
+                    List.foldl
+                        (\v total -> total + calculatePull v.position val.position)
+                        val.velocity
+                        axis
+            }
+        )
+        axis
+
+
+applyVelocityInAxis : Axis -> Axis
+applyVelocityInAxis =
+    List.map (\val -> { val | position = val.position + val.velocity })
+
+
+stepAxis : Axis -> Axis
+stepAxis =
+    applyGravityInAxis >> applyVelocityInAxis
+
+
+repetitionAxiswise : Axes -> Int
+repetitionAxiswise axes =
+    let
+        nthStep axis n =
+            if n <= 0 then
+                axis
+
+            else
+                nthStep (stepAxis axis) (n - 1)
+
+        checkStep ({ original, x, y, z, lastY, lastZ } as params) n =
+            let
+                nextX =
+                    stepAxis x
+
+                nextParams =
+                    { params | x = nextX }
+            in
+            if nextX == original.x then
+                let
+                    nextY =
+                        nthStep y (n - lastY)
+                in
+                if nextY == original.y then
+                    let
+                        nextZ =
+                            nthStep z (n - lastZ)
+                    in
+                    if nextZ == original.z then
+                        n
+
+                    else
+                        checkStep
+                            { nextParams | y = nextY, z = nextZ, lastY = n, lastZ = n }
+                            (n + 1)
+
+                else
+                    checkStep { nextParams | y = nextY, lastY = n } (n + 1)
+
+            else
+                checkStep nextParams (n + 1)
+    in
+    checkStep { x = axes.x, y = axes.y, z = axes.z, original = axes, lastY = 0, lastZ = 0 } 1
