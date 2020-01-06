@@ -1,6 +1,6 @@
 module Jupiter.Moons exposing
     ( calculateTotalEnergy
-    , findRepetition
+    , findPeriod
     , makeAxes
     , makeMoons
     , nSteps
@@ -184,8 +184,8 @@ stepAxis =
     applyGravityInAxis >> applyVelocityInAxis
 
 
-findAxisRepetition : Axis -> Int
-findAxisRepetition originalAxis =
+findAxisPeriod : Axis -> Int
+findAxisPeriod originalAxis =
     let
         checkStep axis n =
             let
@@ -206,7 +206,7 @@ lowestCommonMultiple =
     List.foldl (\x y -> max x y * (min x y // gcd x y)) 1
 
 
-findRepetition : Axes -> Int
-findRepetition { x, y, z } =
-    List.map findAxisRepetition [ x, y, z ]
+findPeriod : Axes -> Int
+findPeriod { x, y, z } =
+    List.map findAxisPeriod [ x, y, z ]
         |> lowestCommonMultiple
