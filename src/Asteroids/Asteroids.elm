@@ -1,4 +1,4 @@
-module Asteroids.Asteroids exposing (bestStation, nthVaporised, parse)
+module Asteroids.Asteroids exposing (bestStation, gcd, nthVaporised, parse)
 
 import Set exposing (Set)
 import Utils exposing (filterMaybes)

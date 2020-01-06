@@ -1,13 +1,14 @@
 module Jupiter.Moons exposing
     ( calculateTotalEnergy
+    , findRepetition
     , makeAxes
     , makeMoons
     , nSteps
-    , repetitionAxiswise
     , step
     , tuplesToMoons
-    , whenDoesRepeat
     )
+
+import Asteroids.Asteroids exposing (gcd)
 
 
 type alias Vector =
@@ -128,19 +129,6 @@ calculateTotalEnergy moons =
         |> List.sum
 
 
-whenDoesRepeat : List Moon -> Int
-whenDoesRepeat moons =
-    let
-        matchState state count current =
-            if current == state then
-                count
-
-            else
-                matchState state (count + 1) (step current)
-    in
-    matchState moons 1 (step moons)
-
-
 type alias Axis =
     List
         { position : Int
@@ -196,46 +184,29 @@ stepAxis =
     applyGravityInAxis >> applyVelocityInAxis
 
 
-repetitionAxiswise : Axes -> Int
-repetitionAxiswise axes =
+findAxisRepetition : Axis -> Int
+findAxisRepetition originalAxis =
     let
-        nthStep axis n =
-            if n <= 0 then
-                axis
-
-            else
-                nthStep (stepAxis axis) (n - 1)
-
-        checkStep ({ original, x, y, z, lastY, lastZ } as params) n =
+        checkStep axis n =
             let
-                nextX =
-                    stepAxis x
-
-                nextParams =
-                    { params | x = nextX }
+                nextAxis =
+                    stepAxis axis
             in
-            if nextX == original.x then
-                let
-                    nextY =
-                        nthStep y (n - lastY)
-                in
-                if nextY == original.y then
-                    let
-                        nextZ =
-                            nthStep z (n - lastZ)
-                    in
-                    if nextZ == original.z then
-                        n
-
-                    else
-                        checkStep
-                            { nextParams | y = nextY, z = nextZ, lastY = n, lastZ = n }
-                            (n + 1)
-
-                else
-                    checkStep { nextParams | y = nextY, lastY = n } (n + 1)
+            if nextAxis == originalAxis then
+                n
 
             else
-                checkStep nextParams (n + 1)
+                checkStep nextAxis (n + 1)
     in
-    checkStep { x = axes.x, y = axes.y, z = axes.z, original = axes, lastY = 0, lastZ = 0 } 1
+    checkStep originalAxis 1
+
+
+lowestCommonMultiple : List Int -> Int
+lowestCommonMultiple =
+    List.foldl (\x y -> max x y * (min x y // gcd x y)) 1
+
+
+findRepetition : Axes -> Int
+findRepetition { x, y, z } =
+    List.map findAxisRepetition [ x, y, z ]
+        |> lowestCommonMultiple
