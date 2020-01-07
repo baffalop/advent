@@ -1,4 +1,4 @@
-module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), countTile, init, play, print, printFromState)
+module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), countTile, init, play, print, printFromState, program)
 
 import Dict exposing (Dict)
 import Intcodes.Intcodes as IC exposing (OpResult(..))
@@ -36,13 +36,13 @@ type Joystick
     | Neutral
 
 
-parseOutput : List Int -> ( Tiles, List Int )
-parseOutput output =
+parseOutput : Tiles -> List Int -> ( Tiles, List Int )
+parseOutput tiles output =
     case output of
         x :: y :: tileCode :: rest ->
             let
-                ( tiles, leftovers ) =
-                    parseOutput rest
+                ( newTiles, leftovers ) =
+                    parseOutput tiles rest
 
                 tile =
                     if ( x, y ) == ( -1, 0 ) then
@@ -51,10 +51,10 @@ parseOutput output =
                     else
                         parseTile tileCode
             in
-            ( Dict.insert ( x, y ) tile tiles, leftovers )
+            ( Dict.insert ( x, y ) tile newTiles, leftovers )
 
         leftovers ->
-            ( Dict.empty, leftovers )
+            ( tiles, leftovers )
 
 
 parseTile : Int -> TileType
@@ -79,18 +79,18 @@ parseTile input =
             Unrecognised
 
 
-toGameState : OpResult -> GameState
-toGameState input =
+toGameState : Tiles -> OpResult -> GameState
+toGameState tiles input =
     let
         ( output, state ) =
             IC.consumeOutput input
 
-        ( tiles, leftoverOutput ) =
-            parseOutput output
+        ( newTiles, leftoverOutput ) =
+            parseOutput tiles output
     in
     case ( state, leftoverOutput ) of
         ( Next _, _ ) ->
-            toGameState (IC.continue input [])
+            toGameState tiles (IC.continue input [])
 
         ( Fail msg _, _ ) ->
             Error ("Computer failed: " ++ msg)
@@ -99,18 +99,18 @@ toGameState input =
             Error "Unexpected leftover output"
 
         ( Waiting _, [] ) ->
-            if hasErrorTiles tiles then
+            if hasErrorTiles newTiles then
                 Error "Unrecognised tiles while playing"
 
             else
-                Playing state tiles (getScore tiles)
+                Playing state newTiles (getScore newTiles)
 
         ( Done _, [] ) ->
-            if hasErrorTiles tiles then
+            if hasErrorTiles newTiles then
                 Error "Unrecognised tiles when done"
 
             else
-                GameOver tiles (getScore tiles)
+                GameOver newTiles (getScore newTiles)
 
 
 getScore : Tiles -> Int
@@ -132,7 +132,7 @@ init quarters =
     quarters
         :: program
         |> flip IC.run []
-        |> toGameState
+        |> toGameState Dict.empty
 
 
 play : Joystick -> GameState -> GameState
@@ -150,8 +150,8 @@ play joystick state =
                     0
     in
     case state of
-        Playing comp _ _ ->
-            IC.continue comp [ input ] |> toGameState
+        Playing comp tiles _ ->
+            IC.continue comp [ input ] |> toGameState tiles
 
         _ ->
             state
