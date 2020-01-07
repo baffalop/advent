@@ -1,4 +1,4 @@
-module Arcade.Game exposing (GameState(..), TileType(..), countTile, play, print)
+module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), countTile, init, play, print, printFromState)
 
 import Dict exposing (Dict)
 import Intcodes.Intcodes as IC exposing (OpResult(..))
@@ -135,8 +135,8 @@ init quarters =
         |> toGameState
 
 
-play : GameState -> Joystick -> GameState
-play state joystick =
+play : Joystick -> GameState -> GameState
+play joystick state =
     let
         input =
             case joystick of
@@ -194,3 +194,16 @@ print =
                 Ball ->
                     'O'
         )
+
+
+printFromState : GameState -> String
+printFromState state =
+    case state of
+        Playing _ tiles score ->
+            print tiles ++ "\nScore: " ++ String.fromInt score
+
+        GameOver tiles score ->
+            print tiles ++ "\nScore: " ++ String.fromInt score
+
+        Error msg ->
+            "Error: " ++ msg
