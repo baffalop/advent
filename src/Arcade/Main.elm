@@ -130,7 +130,7 @@ view model =
             Game.print tiles
     in
     div []
-        [ pre [ style "margin" "60px" ] [ text gameBoard ]
+        [ pre [ style "margin" "60px", style "margin-bottom" "0" ] [ text gameBoard ]
         , pre [ style "margin-left" "60px", style "margin-top" "30px" ]
             [ text (printState model) ]
         ]
