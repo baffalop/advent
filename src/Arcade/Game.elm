@@ -110,7 +110,7 @@ toGameState tiles input =
                 Error "Unrecognised tiles when done"
 
             else
-                GameOver newTiles (getScore newTiles)
+                GameOver newTiles (getScore tiles)
 
 
 getScore : Tiles -> Int

@@ -168,32 +168,32 @@ mapPlayState model f =
 checkGameState : Model -> Model
 checkGameState model =
     let
-        mapPlaying { gameState, tiles, score, frameRate } =
-            case gameState of
-                Game.Playing _ _ _ ->
-                    model
+        updatePlaying state =
+            case state.gameState of
+                Game.Playing _ tiles score ->
+                    mapPlayState model (\s -> { s | tiles = tiles, score = score })
 
-                Game.GameOver gameTiles gameScore ->
+                Game.GameOver tiles score ->
                     GameOver
-                        { tiles = gameTiles
-                        , score = gameScore
-                        , frameRate = frameRate
+                        { tiles = tiles
+                        , score = score
+                        , frameRate = state.frameRate
                         }
 
                 Game.Error msg ->
                     Error
                         { msg = msg
-                        , tiles = tiles
-                        , score = score
-                        , frameRate = frameRate
+                        , tiles = state.tiles
+                        , score = state.score
+                        , frameRate = state.frameRate
                         }
     in
     case model of
-        Playing playState ->
-            mapPlaying playState
+        Playing state ->
+            updatePlaying state
 
-        PlayingButPaused playState ->
-            mapPlaying playState
+        PlayingButPaused state ->
+            updatePlaying state
 
         _ ->
             model
