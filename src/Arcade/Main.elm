@@ -22,7 +22,7 @@ type Model
 type alias PlayState =
     GameInfo
         { gameState : Game.GameState
-        , joystick : Game.Joystick
+        , joystick : Joystick
         }
 
 
@@ -34,16 +34,18 @@ type alias GameInfo a =
     }
 
 
-type alias Settings =
-    { frameRate : Float
-    }
+type Joystick
+    = JustDown Game.Joystick
+    | HeldDown Game.Joystick
+    | Once Game.Joystick
+    | Off
 
 
 type Msg
     = Tick
     | PlayPause
-    | ArrowKey Game.Joystick
-    | ClearJoystick Game.Joystick
+    | ArrowKeyDown Game.Joystick
+    | ArrowKeyUp Game.Joystick
 
 
 main =
@@ -88,7 +90,12 @@ updateModel : Msg -> Model -> Model
 updateModel msg model =
     case Debug.log "Msg" msg of
         Tick ->
-            (\playState -> { playState | gameState = Game.play playState.joystick playState.gameState })
+            (\state ->
+                { state
+                    | gameState = Game.play (translateJoystick state.joystick) state.gameState
+                    , joystick = advanceJoystick state.joystick
+                }
+            )
                 |> mapPlayState model
                 |> checkGameState
 
@@ -103,18 +110,12 @@ updateModel msg model =
                 _ ->
                     Playing <| startingState { frameRate = (getGameInfo model).frameRate }
 
-        ArrowKey joystick ->
-            (\playState -> { playState | joystick = joystick })
+        ArrowKeyDown stick ->
+            (\state -> { state | joystick = mapJoystickDown stick state.joystick })
                 |> mapPlayState model
 
-        ClearJoystick joystick ->
-            (\playState ->
-                if playState.joystick == joystick then
-                    { playState | joystick = Game.Neutral }
-
-                else
-                    playState
-            )
+        ArrowKeyUp stick ->
+            (\state -> { state | joystick = mapJoystickUp stick state.joystick })
                 |> mapPlayState model
 
 
@@ -146,7 +147,7 @@ startingState { frameRate } =
     in
     { gameState = gameState
     , tiles = getTiles gameState
-    , joystick = Game.Neutral
+    , joystick = Off
     , score = 0
     , frameRate = frameRate
     }
@@ -232,10 +233,10 @@ tagKeyDown : Int -> Json.Decoder Msg
 tagKeyDown code =
     case Debug.log "KeyDown" code of
         37 ->
-            Json.succeed (ArrowKey Game.Left)
+            Json.succeed (ArrowKeyDown Game.Left)
 
         39 ->
-            Json.succeed (ArrowKey Game.Right)
+            Json.succeed (ArrowKeyDown Game.Right)
 
         _ ->
             Json.fail "meh"
@@ -245,10 +246,10 @@ tagKeyUp : Int -> Json.Decoder Msg
 tagKeyUp code =
     case Debug.log "KeyUp" code of
         37 ->
-            Json.succeed (ClearJoystick Game.Left)
+            Json.succeed (ArrowKeyUp Game.Left)
 
         39 ->
-            Json.succeed (ClearJoystick Game.Right)
+            Json.succeed (ArrowKeyUp Game.Right)
 
         32 ->
             Json.succeed PlayPause
@@ -275,3 +276,73 @@ printState model =
 
         _ ->
             scoreMsg
+
+
+translateJoystick : Joystick -> Game.Joystick
+translateJoystick state =
+    case state of
+        JustDown stick ->
+            stick
+
+        HeldDown stick ->
+            stick
+
+        Once stick ->
+            stick
+
+        Off ->
+            Game.Neutral
+
+
+mapJoystickDown : Game.Joystick -> Joystick -> Joystick
+mapJoystickDown newStick state =
+    case state of
+        JustDown _ ->
+            JustDown newStick
+
+        HeldDown stick ->
+            if newStick == stick then
+                state
+
+            else
+                JustDown newStick
+
+        Once _ ->
+            JustDown newStick
+
+        Off ->
+            JustDown newStick
+
+
+mapJoystickUp : Game.Joystick -> Joystick -> Joystick
+mapJoystickUp upStick state =
+    case state of
+        JustDown stick ->
+            if upStick == stick then
+                Once stick
+
+            else
+                state
+
+        HeldDown stick ->
+            if upStick == stick then
+                Off
+
+            else
+                state
+
+        _ ->
+            state
+
+
+advanceJoystick : Joystick -> Joystick
+advanceJoystick state =
+    case state of
+        Once _ ->
+            Off
+
+        JustDown stick ->
+            HeldDown stick
+
+        _ ->
+            state
