@@ -12,11 +12,7 @@ import Time
 import Utils exposing (flip)
 
 
-type alias Model =
-    ( State, Settings )
-
-
-type State
+type Model
     = Playing PlayState
     | PlayingButPaused PlayState
     | GameOver (GameInfo {})
@@ -34,6 +30,7 @@ type alias GameInfo a =
     { a
         | score : Int
         , tiles : Game.Tiles
+        , frameRate : Float
     }
 
 
@@ -60,17 +57,17 @@ main =
 
 init : () -> ( Model, Cmd msg )
 init _ =
-    ( PlayingButPaused startingState, { frameRate = 3 } )
+    PlayingButPaused (startingState { frameRate = 3 })
         |> flip Tuple.pair Cmd.none
 
 
 subscriptions : Model -> Sub Msg
-subscriptions ( state, settings ) =
+subscriptions state =
     let
         timeSub =
             case state of
                 Playing _ ->
-                    Time.every (1000 / settings.frameRate) (always Tick)
+                    Time.every (1000 / (getGameInfo state).frameRate) (always Tick)
 
                 _ ->
                     Sub.none
@@ -88,33 +85,27 @@ update msg model =
 
 
 updateModel : Msg -> Model -> Model
-updateModel msg ( state, settings ) =
-    let
-        withSettings =
-            flip Tuple.pair settings
-    in
+updateModel msg model =
     case Debug.log "Msg" msg of
         Tick ->
             (\playState -> { playState | gameState = Game.play playState.joystick playState.gameState })
-                |> mapPlayState state
+                |> mapPlayState model
                 |> checkGameState
-                |> withSettings
 
         PlayPause ->
-            case state of
+            case model of
                 Playing playState ->
-                    PlayingButPaused playState |> withSettings
+                    PlayingButPaused playState
 
                 PlayingButPaused playState ->
-                    Playing playState |> withSettings
+                    Playing playState
 
                 _ ->
-                    Playing startingState |> withSettings
+                    Playing <| startingState { frameRate = (getGameInfo model).frameRate }
 
         ArrowKey joystick ->
             (\playState -> { playState | joystick = joystick })
-                |> mapPlayState state
-                |> withSettings
+                |> mapPlayState model
 
         ClearJoystick joystick ->
             (\playState ->
@@ -124,15 +115,14 @@ updateModel msg ( state, settings ) =
                 else
                     playState
             )
-                |> mapPlayState state
-                |> withSettings
+                |> mapPlayState model
 
 
 view : Model -> Html Msg
-view ( state, _ ) =
+view model =
     let
         { tiles, score } =
-            getGameInfo state
+            getGameInfo model
 
         gameBoard =
             Game.print tiles
@@ -140,7 +130,7 @@ view ( state, _ ) =
     div []
         [ pre [ style "margin" "60px" ] [ text gameBoard ]
         , pre [ style "margin-left" "60px", style "margin-top" "30px" ]
-            [ text (printState state) ]
+            [ text (printState model) ]
         ]
 
 
@@ -148,8 +138,8 @@ view ( state, _ ) =
 -- Game logic
 
 
-startingState : PlayState
-startingState =
+startingState : { frameRate : Float } -> PlayState
+startingState { frameRate } =
     let
         gameState =
             Game.init 2
@@ -158,41 +148,47 @@ startingState =
     , tiles = getTiles gameState
     , joystick = Game.Neutral
     , score = 0
+    , frameRate = frameRate
     }
 
 
-mapPlayState : State -> (PlayState -> PlayState) -> State
-mapPlayState state f =
-    case state of
-        Playing playState ->
-            Playing (f playState)
+mapPlayState : Model -> (PlayState -> PlayState) -> Model
+mapPlayState model f =
+    case model of
+        Playing state ->
+            Playing (f state)
 
-        PlayingButPaused playState ->
-            PlayingButPaused (f playState)
+        PlayingButPaused state ->
+            PlayingButPaused (f state)
 
         _ ->
-            state
+            model
 
 
-checkGameState : State -> State
-checkGameState state =
+checkGameState : Model -> Model
+checkGameState model =
     let
-        mapPlaying { gameState, tiles, score } =
+        mapPlaying { gameState, tiles, score, frameRate } =
             case gameState of
                 Game.Playing _ _ _ ->
-                    state
+                    model
 
                 Game.GameOver gameTiles gameScore ->
-                    GameOver { tiles = gameTiles, score = gameScore }
+                    GameOver
+                        { tiles = gameTiles
+                        , score = gameScore
+                        , frameRate = frameRate
+                        }
 
                 Game.Error msg ->
                     Error
                         { msg = msg
                         , tiles = tiles
                         , score = score
+                        , frameRate = frameRate
                         }
     in
-    case state of
+    case model of
         Playing playState ->
             mapPlaying playState
 
@@ -200,7 +196,7 @@ checkGameState state =
             mapPlaying playState
 
         _ ->
-            state
+            model
 
 
 getTiles : Game.GameState -> Game.Tiles
@@ -216,20 +212,20 @@ getTiles state =
             Dict.empty
 
 
-getGameInfo : State -> GameInfo {}
+getGameInfo : Model -> GameInfo {}
 getGameInfo state =
     case state of
-        Playing { tiles, score } ->
-            { tiles = tiles, score = score }
+        Playing { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
 
-        PlayingButPaused { tiles, score } ->
-            { tiles = tiles, score = score }
+        PlayingButPaused { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
 
-        GameOver { tiles, score } ->
-            { tiles = tiles, score = score }
+        GameOver { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
 
-        Error { tiles, score } ->
-            { tiles = tiles, score = score }
+        Error { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
 
 
 tagKeyDown : Int -> Json.Decoder Msg
@@ -261,16 +257,16 @@ tagKeyUp code =
             Json.fail "w/evs"
 
 
-printState : State -> String
-printState state =
+printState : Model -> String
+printState model =
     let
         { score } =
-            getGameInfo state
+            getGameInfo model
 
         scoreMsg =
             "Score : " ++ String.fromInt score ++ "     "
     in
-    case state of
+    case model of
         Error { msg } ->
             scoreMsg ++ "ERROR: " ++ msg
 
