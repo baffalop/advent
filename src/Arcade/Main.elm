@@ -90,7 +90,7 @@ update msg model =
 
 updateModel : Msg -> Model -> Model
 updateModel msg model =
-    case Debug.log "Msg" msg of
+    case msg of
         Tick ->
             advanceGameState model
 
