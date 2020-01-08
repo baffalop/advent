@@ -46,6 +46,8 @@ type Msg
     | PlayPause
     | ArrowKeyDown Game.Joystick
     | ArrowKeyUp Game.Joystick
+    | IncreaseFrameRate
+    | DecreaseFrameRate
 
 
 main =
@@ -110,6 +112,12 @@ updateModel msg model =
         ArrowKeyUp stick ->
             (\state -> { state | joystick = mapJoystickUp stick state.joystick })
                 |> mapPlayState model
+
+        IncreaseFrameRate ->
+            mapGameInfo model (\state -> { state | frameRate = state.frameRate * 1.5 })
+
+        DecreaseFrameRate ->
+            mapGameInfo model (\state -> { state | frameRate = state.frameRate / 1.5 })
 
 
 view : Model -> Html Msg
@@ -212,6 +220,26 @@ advanceGameState model =
             model
 
 
+mapGameInfo : Model -> (GameInfo {} -> GameInfo {}) -> Model
+mapGameInfo model f =
+    let
+        { tiles, score, frameRate } =
+            f (getGameInfo model)
+
+        map state =
+            { state | tiles = tiles, score = score, frameRate = frameRate }
+    in
+    case model of
+        GameOver state ->
+            GameOver (map state)
+
+        Error state ->
+            Error (map state)
+
+        _ ->
+            mapPlayState model map
+
+
 
 -- Keys and joystick
 
@@ -240,6 +268,12 @@ tagKeyUp code =
 
         32 ->
             Json.succeed PlayPause
+
+        65 ->
+            Json.succeed IncreaseFrameRate
+
+        90 ->
+            Json.succeed DecreaseFrameRate
 
         _ ->
             Json.fail "w/evs"
