@@ -90,14 +90,7 @@ updateModel : Msg -> Model -> Model
 updateModel msg model =
     case Debug.log "Msg" msg of
         Tick ->
-            (\state ->
-                { state
-                    | gameState = Game.play (translateJoystick state.joystick) state.gameState
-                    , joystick = advanceJoystick state.joystick
-                }
-            )
-                |> mapPlayState model
-                |> checkGameState
+            advanceGameState model
 
         PlayPause ->
             case model of
@@ -153,26 +146,45 @@ startingState { frameRate } =
     }
 
 
-mapPlayState : Model -> (PlayState -> PlayState) -> Model
-mapPlayState model f =
-    case model of
-        Playing state ->
-            Playing (f state)
+printState : Model -> String
+printState model =
+    let
+        { score } =
+            getGameInfo model
 
-        PlayingButPaused state ->
-            PlayingButPaused (f state)
+        scoreMsg =
+            "Score : " ++ String.fromInt score ++ "     "
+    in
+    case model of
+        Error { msg } ->
+            scoreMsg ++ "ERROR: " ++ msg
+
+        GameOver _ ->
+            scoreMsg ++ "GAME OVER"
 
         _ ->
-            model
+            scoreMsg
 
 
-checkGameState : Model -> Model
-checkGameState model =
+advanceGameState : Model -> Model
+advanceGameState model =
     let
         updatePlaying state =
-            case state.gameState of
+            let
+                nextGameState =
+                    Game.play (translateJoystick state.joystick) state.gameState
+            in
+            case nextGameState of
                 Game.Playing _ tiles score ->
-                    mapPlayState model (\s -> { s | tiles = tiles, score = score })
+                    (\playState ->
+                        { playState
+                            | gameState = nextGameState
+                            , joystick = advanceJoystick state.joystick
+                            , tiles = tiles
+                            , score = score
+                        }
+                    )
+                        |> mapPlayState model
 
                 Game.GameOver tiles score ->
                     GameOver
@@ -200,33 +212,8 @@ checkGameState model =
             model
 
 
-getTiles : Game.GameState -> Game.Tiles
-getTiles state =
-    case state of
-        Game.Playing _ tiles _ ->
-            tiles
 
-        Game.GameOver tiles _ ->
-            tiles
-
-        Game.Error _ ->
-            Dict.empty
-
-
-getGameInfo : Model -> GameInfo {}
-getGameInfo state =
-    case state of
-        Playing { tiles, score, frameRate } ->
-            { tiles = tiles, score = score, frameRate = frameRate }
-
-        PlayingButPaused { tiles, score, frameRate } ->
-            { tiles = tiles, score = score, frameRate = frameRate }
-
-        GameOver { tiles, score, frameRate } ->
-            { tiles = tiles, score = score, frameRate = frameRate }
-
-        Error { tiles, score, frameRate } ->
-            { tiles = tiles, score = score, frameRate = frameRate }
+-- Keys and joystick
 
 
 tagKeyDown : Int -> Json.Decoder Msg
@@ -256,26 +243,6 @@ tagKeyUp code =
 
         _ ->
             Json.fail "w/evs"
-
-
-printState : Model -> String
-printState model =
-    let
-        { score } =
-            getGameInfo model
-
-        scoreMsg =
-            "Score : " ++ String.fromInt score ++ "     "
-    in
-    case model of
-        Error { msg } ->
-            scoreMsg ++ "ERROR: " ++ msg
-
-        GameOver _ ->
-            scoreMsg ++ "GAME OVER"
-
-        _ ->
-            scoreMsg
 
 
 translateJoystick : Joystick -> Game.Joystick
@@ -346,3 +313,49 @@ advanceJoystick state =
 
         _ ->
             state
+
+
+
+-- Type helpers
+
+
+mapPlayState : Model -> (PlayState -> PlayState) -> Model
+mapPlayState model f =
+    case model of
+        Playing state ->
+            Playing (f state)
+
+        PlayingButPaused state ->
+            PlayingButPaused (f state)
+
+        _ ->
+            model
+
+
+getTiles : Game.GameState -> Game.Tiles
+getTiles state =
+    case state of
+        Game.Playing _ tiles _ ->
+            tiles
+
+        Game.GameOver tiles _ ->
+            tiles
+
+        Game.Error _ ->
+            Dict.empty
+
+
+getGameInfo : Model -> GameInfo {}
+getGameInfo state =
+    case state of
+        Playing { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
+
+        PlayingButPaused { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
+
+        GameOver { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
+
+        Error { tiles, score, frameRate } ->
+            { tiles = tiles, score = score, frameRate = frameRate }
