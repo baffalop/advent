@@ -1,4 +1,4 @@
-module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), countTile, init, play, print, printFromState, program)
+module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), Tiles, countTile, init, play, print, printFromState, program)
 
 import Dict exposing (Dict)
 import Intcodes.Intcodes as IC exposing (OpResult(..))
