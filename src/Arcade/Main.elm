@@ -35,7 +35,7 @@ type alias GameInfo a =
 
 
 type Joystick
-    = JustDown Game.Joystick
+    = JustPressed Game.Joystick
     | HeldDown Game.Joystick
     | Once Game.Joystick
     | Off
@@ -262,7 +262,7 @@ tagKeyUp code =
 translateJoystick : Joystick -> Game.Joystick
 translateJoystick state =
     case state of
-        JustDown stick ->
+        JustPressed stick ->
             stick
 
         HeldDown stick ->
@@ -278,27 +278,27 @@ translateJoystick state =
 mapJoystickDown : Game.Joystick -> Joystick -> Joystick
 mapJoystickDown newStick state =
     case state of
-        JustDown _ ->
-            JustDown newStick
+        JustPressed _ ->
+            JustPressed newStick
 
         HeldDown stick ->
             if newStick == stick then
                 state
 
             else
-                JustDown newStick
+                JustPressed newStick
 
         Once _ ->
-            JustDown newStick
+            JustPressed newStick
 
         Off ->
-            JustDown newStick
+            JustPressed newStick
 
 
 mapJoystickUp : Game.Joystick -> Joystick -> Joystick
 mapJoystickUp upStick state =
     case state of
-        JustDown stick ->
+        JustPressed stick ->
             if upStick == stick then
                 Once stick
 
@@ -322,7 +322,7 @@ advanceJoystick state =
         Once _ ->
             Off
 
-        JustDown stick ->
+        JustPressed stick ->
             HeldDown stick
 
         _ ->
