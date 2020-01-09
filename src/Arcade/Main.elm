@@ -132,7 +132,7 @@ view model =
     div []
         [ pre [ style "margin" "60px", style "margin-bottom" "0" ] [ text gameBoard ]
         , pre [ style "margin-left" "60px", style "margin-top" "30px" ]
-            [ text (printState model) ]
+            [ text <| printState model gameBoard ]
         ]
 
 
@@ -152,26 +152,6 @@ startingState { frameRate } =
     , score = 0
     , frameRate = frameRate
     }
-
-
-printState : Model -> String
-printState model =
-    let
-        { score } =
-            getGameInfo model
-
-        scoreMsg =
-            "Score : " ++ String.fromInt score ++ "     "
-    in
-    case model of
-        Error { msg } ->
-            scoreMsg ++ "ERROR: " ++ msg
-
-        GameOver _ ->
-            scoreMsg ++ "GAME OVER"
-
-        _ ->
-            scoreMsg
 
 
 advanceGameState : Model -> Model
@@ -347,6 +327,56 @@ advanceJoystick state =
 
         _ ->
             state
+
+
+
+-- Printing
+
+
+printState : Model -> String -> String
+printState model gameBoard =
+    let
+        { score } =
+            getGameInfo model
+
+        scoreMsg =
+            "Score : " ++ String.fromInt score
+
+        stateMsg =
+            case model of
+                Error { msg } ->
+                    "ERROR: " ++ msg
+
+                GameOver _ ->
+                    "GAME OVER"
+
+                PlayingButPaused _ ->
+                    "PRESS SPACE TO PLAY"
+
+                _ ->
+                    ""
+
+        spacerLength =
+            getTextWidth gameBoard
+                - String.length scoreMsg
+                - String.length stateMsg
+                |> max 0
+    in
+    scoreMsg ++ String.repeat spacerLength " " ++ stateMsg
+
+
+getTextWidth : String -> Int
+getTextWidth text =
+    case String.uncons text of
+        Nothing ->
+            0
+
+        Just ( char, rest ) ->
+            if char == '\n' then
+                0
+
+            else
+                1 + getTextWidth rest
 
 
 
