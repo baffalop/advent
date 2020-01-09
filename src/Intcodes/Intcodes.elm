@@ -1,8 +1,8 @@
 module Intcodes.Intcodes exposing (Instruction(..), Memory, OpResult(..), consumeOutput, continue, run, start, step)
 
 import Array exposing (Array)
-import BigInt exposing (BigInt, add, gt, lt, mul)
-import Utils exposing (flip, intsToString)
+import BigInt exposing (BigInt, add, lt, mul)
+import Utils exposing (big, eq, flip, intsToString, toInt)
 
 
 type Instruction
@@ -107,29 +107,6 @@ expand toPos ar =
 
         else
             Array.append ar <| Array.repeat (toPos - size + 1) (big 0)
-
-
-
--- BIGINT HELPERS
-
-
-big : Int -> BigInt
-big =
-    BigInt.fromInt
-
-
-toInt : BigInt -> Maybe Int
-toInt n =
-    if gt n (big 9007199254740991) then
-        Nothing
-
-    else
-        n |> BigInt.toString |> String.toInt
-
-
-eq : BigInt -> BigInt -> Bool
-eq x y =
-    not (lt x y) && not (gt x y)
 
 
 

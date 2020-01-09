@@ -1,5 +1,7 @@
 module Utils exposing (..)
 
+import BigInt exposing (BigInt)
+
 
 bigHead : List a -> List a
 bigHead list =
@@ -79,3 +81,26 @@ takeTo needle list =
 intsToString : List Int -> String
 intsToString =
     List.foldl ((String.fromInt >> flip (++) ", ") >> flip (++)) ""
+
+
+
+-- BIGINT HELPERS
+
+
+big : Int -> BigInt
+big =
+    BigInt.fromInt
+
+
+toInt : BigInt -> Maybe Int
+toInt n =
+    if BigInt.gt n (big 9007199254740991) then
+        Nothing
+
+    else
+        n |> BigInt.toString |> String.toInt
+
+
+eq : BigInt -> BigInt -> Bool
+eq x y =
+    not (BigInt.lt x y) && not (BigInt.gt x y)

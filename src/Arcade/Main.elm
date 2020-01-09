@@ -15,7 +15,7 @@ import Utils exposing (flip)
 type Model
     = Playing PlayState
     | PlayingButPaused PlayState
-    | GameOver (GameInfo {})
+    | GameOver (GameInfo { finalState : Game.GameState })
     | Error (GameInfo { msg : String })
 
 
@@ -44,6 +44,7 @@ type Joystick
 type Msg
     = Tick
     | PlayPause
+    | Reset
     | ArrowKeyDown Game.Joystick
     | ArrowKeyUp Game.Joystick
     | IncreaseFrameRate
@@ -102,8 +103,18 @@ updateModel msg model =
                 PlayingButPaused playState ->
                     Playing playState
 
-                _ ->
-                    Playing <| startingState { frameRate = (getGameInfo model).frameRate }
+                GameOver finalState ->
+                    cheat finalState
+
+                Error { frameRate } ->
+                    Playing <| startingState { frameRate = frameRate }
+
+        Reset ->
+            let
+                { frameRate } =
+                    getGameInfo model
+            in
+            Playing <| startingState { frameRate = (getGameInfo model).frameRate }
 
         ArrowKeyDown stick ->
             (\state -> { state | joystick = mapJoystickDown stick state.joystick })
@@ -174,11 +185,12 @@ advanceGameState model =
                     )
                         |> mapPlayState model
 
-                Game.GameOver tiles score ->
+                Game.GameOver _ tiles score ->
                     GameOver
                         { tiles = tiles
                         , score = score
                         , frameRate = state.frameRate
+                        , finalState = nextGameState
                         }
 
                 Game.Error msg ->
@@ -198,6 +210,39 @@ advanceGameState model =
 
         _ ->
             model
+
+
+cheat : GameInfo { finalState : Game.GameState } -> Model
+cheat { finalState, tiles, score, frameRate } =
+    let
+        restartedGame =
+            Game.cheat finalState
+    in
+    case restartedGame of
+        Game.Playing _ newTiles newScore ->
+            Playing
+                { gameState = restartedGame
+                , joystick = Off
+                , tiles = newTiles
+                , score = newScore
+                , frameRate = frameRate
+                }
+
+        Game.GameOver _ _ _ ->
+            Error
+                { msg = "Attempted cheating resulted in GameOver state"
+                , tiles = tiles
+                , score = score
+                , frameRate = frameRate
+                }
+
+        Game.Error msg ->
+            Error
+                { msg = "Attempted cheating resulted in Error state: " ++ msg
+                , tiles = tiles
+                , score = score
+                , frameRate = frameRate
+                }
 
 
 mapGameInfo : Model -> (GameInfo {} -> GameInfo {}) -> Model
@@ -248,6 +293,9 @@ tagKeyUp code =
 
         32 ->
             Json.succeed PlayPause
+
+        82 ->
+            Json.succeed Reset
 
         65 ->
             Json.succeed IncreaseFrameRate
@@ -348,7 +396,7 @@ printState model gameBoard =
                     "ERROR: " ++ msg
 
                 GameOver _ ->
-                    "GAME OVER"
+                    "GAME OVER. Press R to reset (or SPACE to cheat)"
 
                 PlayingButPaused _ ->
                     "PRESS SPACE TO PLAY"
@@ -360,7 +408,7 @@ printState model gameBoard =
             getTextWidth gameBoard
                 - String.length scoreMsg
                 - String.length stateMsg
-                |> max 0
+                |> max 1
     in
     scoreMsg ++ String.repeat spacerLength " " ++ stateMsg
 
@@ -402,7 +450,7 @@ getTiles state =
         Game.Playing _ tiles _ ->
             tiles
 
-        Game.GameOver tiles _ ->
+        Game.GameOver _ tiles _ ->
             tiles
 
         Game.Error _ ->

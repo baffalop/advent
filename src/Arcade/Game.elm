@@ -1,5 +1,6 @@
-module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), Tiles, countTile, init, play, print, printFromState, program)
+module Arcade.Game exposing (GameState(..), Joystick(..), TileType(..), Tiles, cheat, countTile, init, play, print, printFromState, program)
 
+import BigInt exposing (BigInt)
 import Dict exposing (Dict)
 import Intcodes.Intcodes as IC exposing (OpResult(..))
 import Printer
@@ -12,7 +13,7 @@ program =
 
 type GameState
     = Playing OpResult Tiles Int
-    | GameOver Tiles Int
+    | GameOver (List Int) Tiles Int
     | Error String
 
 
@@ -105,12 +106,23 @@ toGameState tiles input =
             else
                 Playing state newTiles (getScore newTiles)
 
-        ( Done _, [] ) ->
+        ( Done { finalState }, [] ) ->
             if hasErrorTiles newTiles then
                 Error "Unrecognised tiles when done"
 
             else
-                GameOver newTiles (getScore tiles)
+                case toProgram finalState of
+                    Nothing ->
+                        Error "Couldn't convert final state to List Int"
+
+                    Just prog ->
+                        GameOver prog newTiles (getScore tiles)
+
+
+toProgram : List BigInt -> Maybe (List Int)
+toProgram state =
+    List.map Utils.toInt state
+        |> List.foldr (Maybe.map2 (::)) (Just [])
 
 
 getScore : Tiles -> Int
@@ -152,6 +164,19 @@ play joystick state =
     case state of
         Playing comp tiles _ ->
             IC.continue comp [ input ] |> toGameState tiles
+
+        _ ->
+            state
+
+
+cheat : GameState -> GameState
+cheat state =
+    case state of
+        GameOver programState tiles _ ->
+            2
+                :: (List.tail programState |> Maybe.withDefault [])
+                |> flip IC.run []
+                |> toGameState tiles
 
         _ ->
             state
@@ -202,7 +227,7 @@ printFromState state =
         Playing _ tiles score ->
             print tiles ++ "\nScore: " ++ String.fromInt score
 
-        GameOver tiles score ->
+        GameOver _ tiles score ->
             print tiles ++ "\nScore: " ++ String.fromInt score
 
         Error msg ->
