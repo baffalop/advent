@@ -4,8 +4,11 @@ import Arcade.Game as Game
 import Browser
 import Browser.Events
 import Dict
-import Html exposing (..)
-import Html.Attributes exposing (style)
+import Element exposing (Element, el, rgb255, text)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Html exposing (Html)
 import Html.Events
 import Json.Decode as Json
 import Time
@@ -131,20 +134,94 @@ updateModel msg model =
             mapGameInfo model (\state -> { state | frameRate = state.frameRate / 1.5 })
 
 
-view : Model -> Html Msg
+
+-- VIEW
+
+
+view : Model -> Html msg
 view model =
     let
-        { tiles, score } =
+        { tiles } =
             getGameInfo model
 
         gameBoard =
             Game.print tiles
     in
-    div []
-        [ pre [ style "margin" "60px", style "margin-bottom" "0" ] [ text gameBoard ]
-        , pre [ style "margin-left" "60px", style "margin-top" "30px" ]
-            [ text <| printState model gameBoard ]
+    Element.layout
+        [ Background.color backgroundColor
+        , Font.color (rgb255 204 204 204)
+        , Font.family
+            [ Font.external
+                { name = "Space"
+                , url = "https://fonts.googleapis.com/css?family=Space+Mono&display=swap"
+                }
+            , Font.monospace
+            ]
         ]
+    <|
+        el [] <|
+            Element.column
+                [ Element.centerX, Element.centerY, Element.spacing 30 ]
+                [ Element.row [ Element.spacing 30 ] [ gamePanel gameBoard, instructionsPanel ]
+                , scorePanel model (getTextWidth gameBoard)
+                ]
+
+
+gamePanel : String -> Element msg
+gamePanel =
+    panel Element.none
+        << Element.html
+        << Html.pre []
+        << List.singleton
+        << Html.text
+
+
+scorePanel : Model -> Int -> Element msg
+scorePanel model width =
+    printState model width
+        |> Element.text
+        |> panel Element.none
+
+
+instructionsPanel : Element msg
+instructionsPanel =
+    panel Element.none <|
+        Element.column
+            [ Element.width (Element.px 120) ]
+            [ text "ARROW KEYS - Move"
+            , text "<SPACE> - Play/pause"
+            , text "R - Reset"
+            , text "A/Z - Increase/decrease framerate"
+            ]
+
+
+panel : Element msg -> Element msg -> Element msg
+panel modal content =
+    el
+        [ Border.color (rgb255 220 213 127)
+        , Border.solid
+        , Border.width 2
+        , Element.padding 4
+        , Element.inFront modal
+        , Element.alignTop
+        ]
+        content
+
+
+innerPanel : Element msg -> Element msg
+innerPanel content =
+    el
+        [ Element.centerX
+        , Element.centerY
+        , Element.padding 2
+        , Background.color backgroundColor
+        ]
+        (panel content Element.none)
+
+
+backgroundColor : Element.Color
+backgroundColor =
+    rgb255 15 15 35
 
 
 
@@ -381,8 +458,8 @@ advanceJoystick state =
 -- Printing
 
 
-printState : Model -> String -> String
-printState model gameBoard =
+printState : Model -> Int -> String
+printState model width =
     let
         { score } =
             getGameInfo model
@@ -393,10 +470,10 @@ printState model gameBoard =
         stateMsg =
             case model of
                 Error { msg } ->
-                    "ERROR: " ++ msg
+                    "ERROR"
 
                 GameOver _ ->
-                    "GAME OVER. Press R to reset (or SPACE to cheat)"
+                    "GAME OVER"
 
                 PlayingButPaused _ ->
                     "PRESS SPACE TO PLAY"
@@ -405,7 +482,7 @@ printState model gameBoard =
                     ""
 
         spacerLength =
-            getTextWidth gameBoard
+            width
                 - String.length scoreMsg
                 - String.length stateMsg
                 |> max 1
