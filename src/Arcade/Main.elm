@@ -159,12 +159,11 @@ view model =
             ]
         ]
     <|
-        el [] <|
-            Element.column
-                [ Element.centerX, Element.centerY, Element.spacing 30 ]
-                [ Element.row [ Element.spacing 30 ] [ gamePanel gameBoard, instructionsPanel ]
-                , scorePanel model (getTextWidth gameBoard)
-                ]
+        Element.column
+            [ Element.centerX, Element.centerY, Element.spacing 30 ]
+            [ Element.row [ Element.spacing 30 ] [ gamePanel gameBoard, instructionsPanel ]
+            , scorePanel model (getTextWidth gameBoard)
+            ]
 
 
 gamePanel : String -> Element msg
@@ -185,14 +184,20 @@ scorePanel model width =
 
 instructionsPanel : Element msg
 instructionsPanel =
-    panel Element.none <|
-        Element.column
-            [ Element.width (Element.px 120) ]
-            [ text "ARROW KEYS - Move"
-            , text "<SPACE> - Play/pause"
-            , text "R - Reset"
-            , text "A/Z - Increase/decrease framerate"
-            ]
+    el [ Element.alignTop ] <|
+        panel Element.none <|
+            Element.paragraph
+                [ Element.width (Element.px 180)
+                , Font.size 15
+                ]
+                (List.intersperse
+                    (Element.html <| Html.br [] [])
+                    [ text "ARROW KEYS - move"
+                    , text "<SPACE> - play / pause"
+                    , text "R - reset"
+                    , text "A/Z - increase / decrease framerate"
+                    ]
+                )
 
 
 panel : Element msg -> Element msg -> Element msg
@@ -200,10 +205,9 @@ panel modal content =
     el
         [ Border.color (rgb255 220 213 127)
         , Border.solid
-        , Border.width 2
-        , Element.padding 4
+        , Border.width 1
+        , Element.padding 5
         , Element.inFront modal
-        , Element.alignTop
         ]
         content
 
@@ -213,7 +217,7 @@ innerPanel content =
     el
         [ Element.centerX
         , Element.centerY
-        , Element.padding 2
+        , Element.padding 5
         , Background.color backgroundColor
         ]
         (panel content Element.none)
