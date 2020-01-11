@@ -15,6 +15,10 @@ import Time
 import Utils exposing (flip)
 
 
+
+-- TYPES
+
+
 type Model
     = Playing PlayState
     | PlayingButPaused PlayState
@@ -37,13 +41,6 @@ type alias GameInfo a =
     }
 
 
-type Joystick
-    = JustPressed Game.Joystick
-    | HeldDown Game.Joystick
-    | Once Game.Joystick
-    | Off
-
-
 type Msg
     = Tick
     | PlayPause
@@ -52,6 +49,27 @@ type Msg
     | ArrowKeyUp Game.Joystick
     | IncreaseFrameRate
     | DecreaseFrameRate
+
+
+
+{-
+   Need to distinguish between key held down across frames, and a key pressed and released within the
+   space of the same frame. The latter should register as a single move - whereas if a key is released
+   on another frame to when it was pressed down, we should not move on the next frame.
+
+   See mapJoystickUp, mapJoystickDown, advanceJoystick
+-}
+
+
+type Joystick
+    = JustPressed Game.Joystick
+    | HeldDown Game.Joystick
+    | Once Game.Joystick
+    | Off
+
+
+
+-- MAIN, UPDATE...
 
 
 main =
@@ -253,7 +271,7 @@ backgroundColor =
 
 
 
--- Game logic
+-- GAME LOGIC
 
 
 startingState : { frameRate : Float } -> PlayState
@@ -350,36 +368,18 @@ cheat { finalState, tiles, score, frameRate } =
                 }
 
 
-mapGameInfo : Model -> (GameInfo {} -> GameInfo {}) -> Model
-mapGameInfo model f =
-    let
-        { tiles, score, frameRate } =
-            f (getGameInfo model)
 
-        map state =
-            { state | tiles = tiles, score = score, frameRate = frameRate }
-    in
-    case model of
-        GameOver state ->
-            GameOver (map state)
-
-        Error state ->
-            Error (map state)
-
-        _ ->
-            mapPlayState model map
-
-
-
--- Keys and joystick
+-- KEYS AND JOYSTICK
 
 
 tagKeyDown : Int -> Json.Decoder Msg
 tagKeyDown code =
     case Debug.log "KeyDown" code of
+        -- left arrow
         37 ->
             Json.succeed (ArrowKeyDown Game.Left)
 
+        -- right arrow
         39 ->
             Json.succeed (ArrowKeyDown Game.Right)
 
@@ -390,21 +390,27 @@ tagKeyDown code =
 tagKeyUp : Int -> Json.Decoder Msg
 tagKeyUp code =
     case Debug.log "KeyUp" code of
+        -- left arrow
         37 ->
             Json.succeed (ArrowKeyUp Game.Left)
 
+        -- right arrow
         39 ->
             Json.succeed (ArrowKeyUp Game.Right)
 
+        -- spacebar
         32 ->
             Json.succeed PlayPause
 
+        -- 'r'
         82 ->
             Json.succeed Reset
 
+        -- 'a'
         65 ->
             Json.succeed IncreaseFrameRate
 
+        -- 'z'
         90 ->
             Json.succeed DecreaseFrameRate
 
@@ -483,7 +489,7 @@ advanceJoystick state =
 
 
 
--- Type helpers
+-- TYPE HELPERS
 
 
 mapPlayState : Model -> (PlayState -> PlayState) -> Model
@@ -499,17 +505,24 @@ mapPlayState model f =
             model
 
 
-getTiles : Game.GameState -> Game.Tiles
-getTiles state =
-    case state of
-        Game.Playing _ tiles _ ->
-            tiles
+mapGameInfo : Model -> (GameInfo {} -> GameInfo {}) -> Model
+mapGameInfo model f =
+    let
+        { tiles, score, frameRate } =
+            f (getGameInfo model)
 
-        Game.GameOver _ tiles _ ->
-            tiles
+        map state =
+            { state | tiles = tiles, score = score, frameRate = frameRate }
+    in
+    case model of
+        GameOver state ->
+            GameOver (map state)
 
-        Game.Error _ ->
-            Dict.empty
+        Error state ->
+            Error (map state)
+
+        _ ->
+            mapPlayState model map
 
 
 getGameInfo : Model -> GameInfo {}
@@ -526,3 +539,16 @@ getGameInfo state =
 
         Error { tiles, score, frameRate } ->
             { tiles = tiles, score = score, frameRate = frameRate }
+
+
+getTiles : Game.GameState -> Game.Tiles
+getTiles state =
+    case state of
+        Game.Playing _ tiles _ ->
+            tiles
+
+        Game.GameOver _ tiles _ ->
+            tiles
+
+        Game.Error _ ->
+            Dict.empty
