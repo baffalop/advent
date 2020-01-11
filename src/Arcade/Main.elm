@@ -176,8 +176,8 @@ view model =
         ]
     <|
         Element.column
-            [ Element.centerX, Element.centerY, Element.spacing 30 ]
-            [ Element.row [ Element.spacing 30 ]
+            [ Element.centerX, Element.centerY, Element.spacing 20 ]
+            [ Element.row [ Element.spacing 20 ]
                 [ gamePanel model tiles
                 , instructionsPanel
                 ]
