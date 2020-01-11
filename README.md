@@ -21,4 +21,4 @@ These modules are meant to be loaded into the Elm REPL. I should document which 
 - **Day 10: Monitoring Station** `src/Asteroids`
 - **Day 11: Space Police** `src/Painting`
 - **Day 12: The N-Body Problem** `src/Jupiter`
-- **Day 13: Care Package** `src/Arcade`
+- **Day 13: Care Package** `elm make src/Arcade/Main.elm` 
