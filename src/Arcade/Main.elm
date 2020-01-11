@@ -386,7 +386,7 @@ cheat { finalState, tiles, score, frameRate } =
 
 tagKeyDown : Int -> Json.Decoder Msg
 tagKeyDown code =
-    case Debug.log "KeyDown" code of
+    case code of
         -- left arrow
         37 ->
             Json.succeed (ArrowKeyDown Game.Left)
@@ -401,7 +401,7 @@ tagKeyDown code =
 
 tagKeyUp : Int -> Json.Decoder Msg
 tagKeyUp code =
-    case Debug.log "KeyUp" code of
+    case code of
         -- left arrow
         37 ->
             Json.succeed (ArrowKeyUp Game.Left)
