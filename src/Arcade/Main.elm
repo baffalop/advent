@@ -247,11 +247,13 @@ instructionsPanel =
                     , text "<SPACE>"
                     , text "play/pause"
                     , Element.none
+                    , text "A/Z"
+                    , text "increase/decrease framerate"
+                    , Element.none
                     , text "R"
                     , text "reset"
                     , Element.none
-                    , text "A/Z"
-                    , text "increase/decrease framerate"
+                    , text "...or you can cheat..."
                     ]
 
 
