@@ -225,9 +225,7 @@ gamePanel model tiles =
 
 scorePanel : Int -> Element msg
 scorePanel score =
-    "Score: "
-        ++ String.fromInt score
-        |> Element.text
+    Element.text ("Score: " ++ String.fromInt score)
         |> panel Element.none
 
 
