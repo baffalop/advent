@@ -239,13 +239,19 @@ instructionsPanel =
                 , Font.size 15
                 ]
             <|
-                List.concatMap (List.intersperse br) <|
-                    List.intersperse [ br, Element.none ] <|
-                        [ [ text "ARROW KEYS", text "move" ]
-                        , [ text "<SPACE>", text "play/pause" ]
-                        , [ text "R", text "reset" ]
-                        , [ text "A/Z", text "increase/decrease framerate" ]
-                        ]
+                List.intersperse br <|
+                    [ text "ARROW KEYS"
+                    , text "move"
+                    , Element.none
+                    , text "<SPACE>"
+                    , text "play/pause"
+                    , Element.none
+                    , text "R"
+                    , text "reset"
+                    , Element.none
+                    , text "A/Z"
+                    , text "increase/decrease framerate"
+                    ]
 
 
 panel : Element msg -> Element msg -> Element msg
