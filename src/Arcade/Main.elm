@@ -241,16 +241,16 @@ instructionsPanel =
                 ]
             <|
                 List.intersperse br <|
-                    [ text "ARROW KEYS"
+                    [ text "<ARROW KEYS>"
                     , text "move"
                     , Element.none
                     , text "<SPACE>"
                     , text "play/pause"
                     , Element.none
-                    , text "A/Z"
+                    , text "<A/Z>"
                     , text "increase/decrease framerate"
                     , Element.none
-                    , text "R"
+                    , text "<R>"
                     , text "reset"
                     , Element.none
                     , text "...or you can cheat..."
