@@ -84,7 +84,7 @@ main =
 
 init : () -> ( Model, Cmd msg )
 init _ =
-    PlayingButPaused (startingState { frameRate = 3 })
+    PlayingButPaused (startingState { frameRate = 6 })
         |> flip Tuple.pair Cmd.none
 
 
@@ -147,10 +147,10 @@ updateModel msg model =
                 |> mapPlayState model
 
         IncreaseFrameRate ->
-            mapGameInfo model (\state -> { state | frameRate = state.frameRate * 1.5 })
+            mapGameInfo model (\state -> { state | frameRate = state.frameRate * 1.3 })
 
         DecreaseFrameRate ->
-            mapGameInfo model (\state -> { state | frameRate = state.frameRate / 1.5 })
+            mapGameInfo model (\state -> { state | frameRate = state.frameRate / 1.3 })
 
 
 
