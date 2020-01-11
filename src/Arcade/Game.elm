@@ -208,13 +208,13 @@ print =
                     '.'
 
                 Wall ->
-                    '+'
+                    '/'
 
                 Block ->
                     '#'
 
                 Paddle ->
-                    '_'
+                    '='
 
                 Ball ->
                     'O'
