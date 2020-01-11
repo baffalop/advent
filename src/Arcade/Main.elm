@@ -141,11 +141,8 @@ updateModel msg model =
 view : Model -> Html msg
 view model =
     let
-        { tiles } =
+        { score, tiles } =
             getGameInfo model
-
-        gameBoard =
-            Game.print tiles
     in
     Element.layout
         [ Background.color backgroundColor
@@ -161,23 +158,49 @@ view model =
     <|
         Element.column
             [ Element.centerX, Element.centerY, Element.spacing 30 ]
-            [ Element.row [ Element.spacing 30 ] [ gamePanel gameBoard, instructionsPanel ]
-            , scorePanel model (getTextWidth gameBoard)
+            [ Element.row [ Element.spacing 30 ]
+                [ gamePanel model tiles
+                , instructionsPanel
+                ]
+            , scorePanel score
             ]
 
 
-gamePanel : String -> Element msg
-gamePanel =
-    panel Element.none
-        << Element.html
-        << Html.pre []
-        << List.singleton
-        << Html.text
+gamePanel : Model -> Game.Tiles -> Element msg
+gamePanel model tiles =
+    let
+        modal =
+            case model of
+                Playing _ ->
+                    Element.none
+
+                Error { msg } ->
+                    innerPanel <|
+                        Element.paragraph
+                            []
+                            [ Element.text "ERROR"
+                            , Element.html <| Html.br [] []
+                            , Element.text msg
+                            ]
+
+                GameOver _ ->
+                    innerPanel <| Element.text "GAME OVER"
+
+                PlayingButPaused _ ->
+                    innerPanel <| Element.text "PRESS SPACE TO PLAY"
+    in
+    Game.print tiles
+        |> Html.text
+        |> List.singleton
+        |> Html.pre []
+        |> Element.html
+        |> panel modal
 
 
-scorePanel : Model -> Int -> Element msg
-scorePanel model width =
-    printState model width
+scorePanel : Int -> Element msg
+scorePanel score =
+    "Score: "
+        ++ String.fromInt score
         |> Element.text
         |> panel Element.none
 
@@ -219,8 +242,9 @@ innerPanel content =
         , Element.centerY
         , Element.padding 5
         , Background.color backgroundColor
+        , Font.center
         ]
-        (panel content Element.none)
+        (panel Element.none content)
 
 
 backgroundColor : Element.Color
@@ -456,56 +480,6 @@ advanceJoystick state =
 
         _ ->
             state
-
-
-
--- Printing
-
-
-printState : Model -> Int -> String
-printState model width =
-    let
-        { score } =
-            getGameInfo model
-
-        scoreMsg =
-            "Score : " ++ String.fromInt score
-
-        stateMsg =
-            case model of
-                Error { msg } ->
-                    "ERROR"
-
-                GameOver _ ->
-                    "GAME OVER"
-
-                PlayingButPaused _ ->
-                    "PRESS SPACE TO PLAY"
-
-                _ ->
-                    ""
-
-        spacerLength =
-            width
-                - String.length scoreMsg
-                - String.length stateMsg
-                |> max 1
-    in
-    scoreMsg ++ String.repeat spacerLength " " ++ stateMsg
-
-
-getTextWidth : String -> Int
-getTextWidth text =
-    case String.uncons text of
-        Nothing ->
-            0
-
-        Just ( char, rest ) ->
-            if char == '\n' then
-                0
-
-            else
-                1 + getTextWidth rest
 
 
 
