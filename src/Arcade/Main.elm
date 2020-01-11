@@ -9,6 +9,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Html exposing (Html)
+import Html.Attributes
 import Html.Events
 import Json.Decode as Json
 import Time
@@ -218,7 +219,7 @@ gamePanel model tiles =
     Game.print tiles
         |> Html.text
         |> List.singleton
-        |> Html.pre []
+        |> Html.pre [ Html.Attributes.style "margin" "0" ]
         |> Element.html
         |> panel modal
 
