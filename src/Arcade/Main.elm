@@ -197,12 +197,20 @@ gamePanel model tiles =
                         Element.paragraph
                             []
                             [ Element.text "ERROR"
-                            , Element.html <| Html.br [] []
+                            , br
                             , Element.text msg
+                            , br
+                            , Element.text "press r to restart"
                             ]
 
                 GameOver _ ->
-                    innerPanel <| Element.text "GAME OVER"
+                    innerPanel <|
+                        Element.paragraph
+                            []
+                            [ Element.text "GAME OVER"
+                            , br
+                            , Element.text "press r to restart"
+                            ]
 
                 PlayingButPaused _ ->
                     innerPanel <| Element.text "PRESS SPACE TO PLAY"
@@ -268,6 +276,11 @@ innerPanel content =
 backgroundColor : Element.Color
 backgroundColor =
     rgb255 15 15 35
+
+
+br : Element msg
+br =
+    Element.html <| Html.br [] []
 
 
 
