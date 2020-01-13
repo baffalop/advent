@@ -29,13 +29,20 @@ type alias Memory =
     , input : List Int
     , output : List Int
     , instruction : Instruction
-    , registers : List BigInt
+    , registers : Registers
 
     -- for debugging
     , immediateValue : Maybe BigInt
     , positionalValue : Maybe BigInt
     , relativeValue : Maybe BigInt
     }
+
+
+type Registers
+    = Empty
+    | One BigInt
+    | Both BigInt BigInt
+    | Overflow
 
 
 type OpResult
@@ -57,7 +64,7 @@ initMemory program inputs =
     , input = inputs
     , output = []
     , instruction = ReadCode
-    , registers = []
+    , registers = Empty
     , immediateValue = List.head program |> Maybe.map BigInt.fromInt
     , positionalValue = Nothing
     , relativeValue = Nothing
@@ -84,7 +91,23 @@ next mem =
 
 consumeRegisters : Memory -> Memory
 consumeRegisters mem =
-    { mem | registers = [] }
+    { mem | registers = Empty }
+
+
+pushToRegisters : BigInt -> Registers -> Registers
+pushToRegisters value registers =
+    case registers of
+        Empty ->
+            One value
+
+        One x ->
+            Both x value
+
+        Both _ _ ->
+            Overflow
+
+        Overflow ->
+            Overflow
 
 
 nextInstruction : Memory -> Memory
@@ -135,45 +158,57 @@ step state =
                     doReadCode mem
 
                 Arithmetic f ( mode1, mode2, mode3 ) ->
-                    case List.length registers of
-                        0 ->
+                    case registers of
+                        Empty ->
                             getValue mode1 pos mem
 
-                        1 ->
+                        One _ ->
                             getValue mode2 pos mem
 
-                        _ ->
-                            doArithmetic mode3 f mem
+                        Both x y ->
+                            setValue mode3 (f x y) (consumeRegisters mem)
+
+                        Overflow ->
+                            Fail "Register overflow for arithmetic op" (Just mem)
 
                 JumpIf f ( mode1, mode2 ) ->
-                    case List.length registers of
-                        0 ->
+                    case registers of
+                        Empty ->
                             getValue mode1 pos mem
 
-                        1 ->
+                        One _ ->
                             getValue mode2 pos mem
 
-                        _ ->
-                            jumpIf f mem
+                        Both x y ->
+                            jumpIf f x y mem
+
+                        Overflow ->
+                            Fail "Register overflow for jump-if op" (Just mem)
 
                 Input mode ->
                     doInput mode mem
 
                 Output mode ->
-                    case List.length registers of
-                        0 ->
+                    case registers of
+                        Empty ->
                             getValue mode pos mem
 
+                        One x ->
+                            doOutput x mem
+
                         _ ->
-                            doOutput mem
+                            Fail "Register overflow for output op" (Just mem)
 
                 ChangeBase mode ->
-                    case List.length registers of
-                        0 ->
+                    case registers of
+                        Empty ->
                             getValue mode pos mem
 
+                        One x ->
+                            changeBase x mem
+
                         _ ->
-                            changeBase mem
+                            Fail "Register overflow for change base op" (Just mem)
 
         _ ->
             state
@@ -323,19 +358,6 @@ readOpcode code =
             Unrecognised
 
 
-doArithmetic : Mode -> (BigInt -> BigInt -> BigInt) -> Memory -> OpResult
-doArithmetic mode op mem =
-    case mem.registers of
-        [] ->
-            Fail "Registers are not populated" (Just mem)
-
-        _ :: [] ->
-            Fail "Registers are not populated" (Just mem)
-
-        x :: (y :: _) ->
-            setValue mode (op x y) (consumeRegisters mem)
-
-
 getValue : Mode -> Int -> Memory -> OpResult
 getValue mode pos mem =
     let
@@ -363,7 +385,7 @@ getValue mode pos mem =
         Just value ->
             case mode of
                 Immediate ->
-                    next { newMem | registers = mem.registers ++ [ value ] }
+                    next { newMem | registers = pushToRegisters value mem.registers }
 
                 Position ->
                     intMap (\v -> getValue Immediate v newMem) value
@@ -419,62 +441,43 @@ doInput mode mem =
             setValue mode (big x) { mem | input = xs }
 
 
-doOutput : Memory -> OpResult
-doOutput mem =
-    case List.head mem.registers of
+doOutput : BigInt -> Memory -> OpResult
+doOutput value mem =
+    case toInt value of
         Nothing ->
-            Fail "Registers not populated" (Just mem)
+            Fail "Value is too big to output" (Just mem)
 
-        Just value ->
-            case toInt value of
-                Nothing ->
-                    Fail "Value is too big to output" (Just mem)
-
-                Just v ->
-                    Next
-                        (consumeRegisters
-                            { mem
-                                | output = mem.output ++ [ v ]
-                                , instruction = ReadCode
-                            }
-                        )
+        Just v ->
+            Next <|
+                consumeRegisters
+                    { mem
+                        | output = mem.output ++ [ v ]
+                        , instruction = ReadCode
+                    }
 
 
-jumpIf : (BigInt -> Bool) -> Memory -> OpResult
-jumpIf func mem =
-    case mem.registers of
-        [] ->
-            Fail "Registers not populated" (Just mem)
+jumpIf : (BigInt -> Bool) -> BigInt -> BigInt -> Memory -> OpResult
+jumpIf func value jumpPos mem =
+    if func value then
+        case toInt jumpPos of
+            Nothing ->
+                Fail "Jump-to position too big" (Just mem)
 
-        _ :: [] ->
-            Fail "Registers not populated" (Just mem)
+            Just jumpPosInt ->
+                Next <| nextInstruction <| consumeRegisters { mem | pos = jumpPosInt }
 
-        value :: (jumpPos :: _) ->
-            if func value then
-                case toInt jumpPos of
-                    Nothing ->
-                        Fail "Jump-to position too big" (Just mem)
-
-                    Just jumpPosInt ->
-                        Next (nextInstruction <| consumeRegisters { mem | pos = jumpPosInt })
-
-            else
-                Next (consumeRegisters { mem | instruction = ReadCode })
+    else
+        Next <| consumeRegisters { mem | instruction = ReadCode }
 
 
-changeBase : Memory -> OpResult
-changeBase mem =
-    case List.head mem.registers of
+changeBase : BigInt -> Memory -> OpResult
+changeBase newBase mem =
+    case toInt newBase of
         Nothing ->
-            Fail "Registers not populated" (Just mem)
+            Fail "New base too big" (Just mem)
 
-        Just value ->
-            case toInt value of
-                Nothing ->
-                    Fail "New base too big" (Just mem)
-
-                Just baseChange ->
-                    Next (nextInstruction <| consumeRegisters { mem | base = mem.base + baseChange })
+        Just val ->
+            Next <| nextInstruction <| consumeRegisters { mem | base = mem.base + val }
 
 
 
