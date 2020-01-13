@@ -1,6 +1,6 @@
 module Amps.Amps exposing (initAmps, optimiseAmps, permuteUnique, runFeedbackAmps)
 
-import Intcodes.Intcodes as Intcodes exposing (OpResult(..))
+import Intcodes.Intcodes as IC exposing (OpResult(..))
 import Set
 import Utils exposing (flip)
 
@@ -29,19 +29,22 @@ permuteUnique lower upper =
 
 initAmps : List Int -> List Int -> List OpResult
 initAmps program phases =
-    List.map (List.singleton >> Intcodes.run program) phases
+    List.map (List.singleton >> IC.run program) phases
 
 
 runAmpCycle : Int -> List OpResult -> ( Int, List OpResult )
 runAmpCycle input amps =
     let
-        next output result rest =
-            case Utils.littleTail output of
-                Nothing ->
+        next result rest =
+            case IC.consumeOutput result of
+                ( [], _ ) ->
                     ( 0, [ Fail "Last amp did not output" Nothing ] )
 
-                Just x ->
-                    Tuple.mapSecond ((::) result) (runAmpCycle x rest)
+                ( output :: [], consumedResult ) ->
+                    Tuple.mapSecond ((::) consumedResult) (runAmpCycle output rest)
+
+                ( _, _ ) ->
+                    ( 0, [ Fail "Last amp gave too many outputs" Nothing ] )
     in
     case amps of
         [] ->
@@ -50,7 +53,7 @@ runAmpCycle input amps =
         amp :: rest ->
             let
                 result =
-                    Intcodes.continue amp [ input ]
+                    IC.continue amp [ input ]
             in
             case result of
                 Fail _ _ ->
@@ -59,11 +62,11 @@ runAmpCycle input amps =
                 Next mem ->
                     ( 0, [ Fail "Got ourselves into a Next state somehow" (Just mem) ] )
 
-                Waiting { output } ->
-                    next output result rest
+                Waiting _ ->
+                    next result rest
 
-                Done { output } ->
-                    next output result rest
+                Done _ ->
+                    next result rest
 
 
 allWaiting : List OpResult -> Bool
