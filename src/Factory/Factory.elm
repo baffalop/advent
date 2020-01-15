@@ -1,4 +1,4 @@
-module Factory.Factory exposing (Reactions, accountForFuel, findPriceOfFuel, howMuchCanIProduce, parse)
+module Factory.Factory exposing (Reactions, accountForFuel, findCostOfFuel, howMuchCanIProduce, parse)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
@@ -6,19 +6,19 @@ import Set
 import Utils exposing (flip)
 
 
-type alias Price =
+type alias Cost =
     ( String, Int )
 
 
 type alias Reactions =
-    Dict String ( Int, List Price )
+    Dict String ( Int, List Cost )
 
 
-expandPrice : Reactions -> Price -> Maybe (List Price)
-expandPrice reactions ( name, requiredQty ) =
+expandCost : Reactions -> Cost -> Maybe (List Cost)
+expandCost reactions ( name, requiredQty ) =
     Dict.get name reactions
         |> Maybe.map
-            (\( acquiredQty, priceList ) ->
+            (\( acquiredQty, costList ) ->
                 let
                     multiple =
                         ceiling (toFloat requiredQty / toFloat acquiredQty)
@@ -26,20 +26,20 @@ expandPrice reactions ( name, requiredQty ) =
                     difference =
                         requiredQty - (multiple * acquiredQty)
 
-                    priceListOut =
-                        List.map (Tuple.mapSecond ((*) multiple)) priceList
+                    output =
+                        List.map (Tuple.mapSecond ((*) multiple)) costList
                 in
                 if difference == 0 then
-                    priceListOut
+                    output
 
                 else
-                    ( name, difference ) :: priceListOut
+                    ( name, difference ) :: output
             )
 
 
-expandPrices : Reactions -> Dict String Int -> Maybe (Dict String Int)
-expandPrices reactions prices =
-    case prices |> Dict.toList |> getFirstUnexpandedPrice of
+expandCosts : Reactions -> Dict String Int -> Maybe (Dict String Int)
+expandCosts reactions prices =
+    case prices |> Dict.toList |> getFirstUnexpandedCost of
         Nothing ->
             Just prices
 
@@ -48,43 +48,43 @@ expandPrices reactions prices =
                 rest =
                     Dict.remove (Tuple.first price) prices
             in
-            Maybe.map (addPrices rest) (expandPrice reactions price)
-                |> Maybe.andThen (expandPrices reactions)
+            Maybe.map (addCosts rest) (expandCost reactions price)
+                |> Maybe.andThen (expandCosts reactions)
 
 
-getFirstUnexpandedPrice : List Price -> Maybe Price
-getFirstUnexpandedPrice prices =
-    case prices of
+getFirstUnexpandedCost : List Cost -> Maybe Cost
+getFirstUnexpandedCost costs =
+    case costs of
         [] ->
             Nothing
 
         ( name, qty ) :: rest ->
             if name == "ORE" || qty <= 0 then
-                getFirstUnexpandedPrice rest
+                getFirstUnexpandedCost rest
 
             else
                 Just ( name, qty )
 
 
-addPrices : Dict String Int -> List Price -> Dict String Int
-addPrices ledger prices =
+addCosts : Dict String Int -> List Cost -> Dict String Int
+addCosts ledger costs =
     List.foldl
         (\( name, qty ) ledger_ ->
             Dict.update name (\x -> Maybe.withDefault 0 x + qty |> Just) ledger_
         )
         ledger
-        prices
+        costs
 
 
 accountForFuel : Reactions -> Maybe (Dict String Int)
 accountForFuel reactions =
-    expandPrice reactions ( "FUEL", 1 )
+    expandCost reactions ( "FUEL", 1 )
         |> Maybe.map Dict.fromList
-        |> Maybe.andThen (expandPrices reactions)
+        |> Maybe.andThen (expandCosts reactions)
 
 
-findPriceOfFuel : Reactions -> Maybe Int
-findPriceOfFuel reactions =
+findCostOfFuel : Reactions -> Maybe Int
+findCostOfFuel reactions =
     accountForFuel reactions
         |> Maybe.andThen (Dict.get "ORE")
 
@@ -92,28 +92,28 @@ findPriceOfFuel reactions =
 howMuchCanIProduce : Reactions -> Int -> Int
 howMuchCanIProduce reactions ore =
     let
-        priceOfFuel =
-            findPriceOfFuel reactions |> Maybe.withDefault 1
+        costOfFuel =
+            findCostOfFuel reactions |> Maybe.withDefault 1
 
         initialOutlay =
-            ore // priceOfFuel
+            ore // costOfFuel
 
-        countdown count prices =
-            if (Dict.get "ORE" prices |> Maybe.withDefault 0) > ore then
+        countdown count costs =
+            if (Dict.get "ORE" costs |> Maybe.withDefault 0) > ore then
                 count
 
             else
                 let
                     nextExpansion =
-                        Dict.insert "FUEL" 1 prices
-                            |> expandPrices reactions
+                        Dict.insert "FUEL" 1 costs
+                            |> expandCosts reactions
                             |> Maybe.withDefault Dict.empty
                 in
                 countdown (count + 1) nextExpansion
     in
-    expandPrice reactions ( "FUEL", initialOutlay )
+    expandCost reactions ( "FUEL", initialOutlay )
         |> Maybe.map Dict.fromList
-        |> Maybe.andThen (expandPrices reactions)
+        |> Maybe.andThen (expandCosts reactions)
         |> Maybe.withDefault Dict.empty
         |> countdown (initialOutlay - 1)
 
@@ -122,8 +122,8 @@ howMuchCanIProduce reactions ore =
 -- Parser
 
 
-priceParser : Parser Price
-priceParser =
+costParser : Parser Cost
+costParser =
     Parser.succeed (flip Tuple.pair)
         |= Parser.int
         |. Parser.spaces
@@ -134,22 +134,22 @@ priceParser =
             }
 
 
-pricesParser : Parser (List Price)
-pricesParser =
+costsParser : Parser (List Cost)
+costsParser =
     Parser.sequence
         { start = ""
         , end = ""
         , separator = ","
         , spaces = Parser.spaces
-        , item = priceParser
+        , item = costParser
         , trailing = Parser.Forbidden
         }
 
 
-reactionParser : Parser { name : String, qty : Int, prices : List Price }
+reactionParser : Parser { name : String, qty : Int, costs : List Cost }
 reactionParser =
-    Parser.succeed (\prices qty name -> { name = name, qty = qty, prices = prices })
-        |= pricesParser
+    Parser.succeed (\costs qty name -> { name = name, qty = qty, costs = costs })
+        |= costsParser
         |. Parser.spaces
         |. Parser.symbol "=>"
         |. Parser.spaces
@@ -168,8 +168,8 @@ reactionsParser =
         \reactions ->
             Parser.oneOf
                 [ Parser.succeed
-                    (\{ name, qty, prices } ->
-                        Parser.Loop <| Dict.insert name ( qty, prices ) reactions
+                    (\{ name, qty, costs } ->
+                        Parser.Loop <| Dict.insert name ( qty, costs ) reactions
                     )
                     |= reactionParser
                     |. Parser.chompWhile ((==) '\n')
