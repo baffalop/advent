@@ -92,6 +92,12 @@ findPriceOfFuel reactions =
 howMuchCanIProduce : Reactions -> Int -> Int
 howMuchCanIProduce reactions ore =
     let
+        priceOfFuel =
+            findPriceOfFuel reactions |> Maybe.withDefault 1
+
+        initialOutlay =
+            ore // priceOfFuel
+
         countdown count prices =
             if (Dict.get "ORE" prices |> Maybe.withDefault 0) > ore then
                 count
@@ -105,11 +111,11 @@ howMuchCanIProduce reactions ore =
                 in
                 countdown (count + 1) nextExpansion
     in
-    expandPrice reactions ( "FUEL", 1 )
+    expandPrice reactions ( "FUEL", initialOutlay )
         |> Maybe.map Dict.fromList
         |> Maybe.andThen (expandPrices reactions)
         |> Maybe.withDefault Dict.empty
-        |> countdown 0
+        |> countdown (initialOutlay - 1)
 
 
 
