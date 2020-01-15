@@ -22,46 +22,66 @@ expandPrice reactions ( name, requiredQty ) =
                 let
                     multiple =
                         ceiling (toFloat requiredQty / toFloat acquiredQty)
+
+                    difference =
+                        requiredQty - (multiple * acquiredQty)
+
+                    priceListOut =
+                        List.map (Tuple.mapSecond ((*) multiple)) priceList
                 in
-                if multiple == 1 then
-                    priceList
+                if difference == 0 then
+                    priceListOut
 
                 else
-                    List.map (Tuple.mapSecond ((*) multiple)) priceList
+                    ( name, difference ) :: priceListOut
             )
 
 
-expandPrices : Reactions -> List Price -> Maybe (List Price)
+expandPrices : Reactions -> Dict String Int -> Maybe (Dict String Int)
 expandPrices reactions prices =
+    case prices |> Dict.toList |> getFirstUnexpandedPrice of
+        Nothing ->
+            Just prices
+
+        Just price ->
+            let
+                rest =
+                    Dict.remove (Tuple.first price) prices
+            in
+            Maybe.map (addPrices rest) (expandPrice reactions price)
+                |> Maybe.andThen (expandPrices reactions)
+
+
+getFirstUnexpandedPrice : List Price -> Maybe Price
+getFirstUnexpandedPrice prices =
     case prices of
         [] ->
-            Just []
+            Nothing
 
-        price :: rest ->
-            if Tuple.first price == "ORE" then
-                Maybe.map ((::) price) (expandPrices reactions rest)
+        ( name, qty ) :: rest ->
+            if name == "ORE" || qty <= 0 then
+                getFirstUnexpandedPrice rest
 
             else
-                Maybe.map (flip (++) rest >> consolidatePrices) (expandPrice reactions price)
-                    |> Maybe.andThen (expandPrices reactions)
+                Just ( name, qty )
 
 
-consolidatePrices : List Price -> List Price
-consolidatePrices prices =
+addPrices : Dict String Int -> List Price -> Dict String Int
+addPrices ledger prices =
     List.foldl
-        (\( name, qty ) ledger ->
-            Dict.update name (\x -> Maybe.withDefault 0 x + qty |> Just) ledger
+        (\( name, qty ) ledger_ ->
+            Dict.update name (\x -> Maybe.withDefault 0 x + qty |> Just) ledger_
         )
-        Dict.empty
+        ledger
         prices
-        |> Dict.toList
 
 
 findPriceOfFuel : Reactions -> Maybe Int
 findPriceOfFuel reactions =
     expandPrice reactions ( "FUEL", 1 )
+        |> Maybe.map Dict.fromList
         |> Maybe.andThen (expandPrices reactions)
-        |> Maybe.map (List.map Tuple.second >> List.sum)
+        |> Maybe.andThen (Dict.get "ORE")
 
 
 
