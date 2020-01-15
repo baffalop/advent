@@ -1,4 +1,4 @@
-module Factory.Factory exposing (Reactions, findPriceOfFuel, parse)
+module Factory.Factory exposing (Reactions, accountForFuel, findPriceOfFuel, howMuchCanIProduce, parse)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
@@ -76,12 +76,40 @@ addPrices ledger prices =
         prices
 
 
-findPriceOfFuel : Reactions -> Maybe Int
-findPriceOfFuel reactions =
+accountForFuel : Reactions -> Maybe (Dict String Int)
+accountForFuel reactions =
     expandPrice reactions ( "FUEL", 1 )
         |> Maybe.map Dict.fromList
         |> Maybe.andThen (expandPrices reactions)
+
+
+findPriceOfFuel : Reactions -> Maybe Int
+findPriceOfFuel reactions =
+    accountForFuel reactions
         |> Maybe.andThen (Dict.get "ORE")
+
+
+howMuchCanIProduce : Reactions -> Int -> Int
+howMuchCanIProduce reactions ore =
+    let
+        countdown count prices =
+            if (Dict.get "ORE" prices |> Maybe.withDefault 0) > ore then
+                count
+
+            else
+                let
+                    nextExpansion =
+                        Dict.insert "FUEL" 1 prices
+                            |> expandPrices reactions
+                            |> Maybe.withDefault Dict.empty
+                in
+                countdown (count + 1) nextExpansion
+    in
+    expandPrice reactions ( "FUEL", 1 )
+        |> Maybe.map Dict.fromList
+        |> Maybe.andThen (expandPrices reactions)
+        |> Maybe.withDefault Dict.empty
+        |> countdown 0
 
 
 
