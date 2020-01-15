@@ -1,4 +1,4 @@
-module Factory.Factory exposing (..)
+module Factory.Factory exposing (findPriceOfFuel, parse)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
