@@ -107,17 +107,17 @@ howMuchCanIProduce reactions initialOre =
                     ore // costOfFuel
 
                 expansion =
-                    addFuel reactions outlay costs
+                    addFuel reactions (max 1 outlay) costs
 
                 spentOre =
                     Maybe.andThen (Dict.get "ORE") expansion
-                        |> Maybe.withDefault initialOre
+                        |> Maybe.withDefault (initialOre + 1)
 
                 remainingOre =
                     initialOre - spentOre
             in
-            if outlay == 0 then
-                outlay
+            if remainingOre < 0 then
+                0
 
             else
                 outlay + howMuch remainingOre expansion
