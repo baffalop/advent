@@ -1,4 +1,4 @@
-module Factory.Factory exposing (Reactions, accountForFuel, findCostOfFuel, howMuchCanIProduce, parse)
+module Factory.Factory exposing (..)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
@@ -83,6 +83,12 @@ accountForFuel reactions =
         |> Maybe.andThen (expandCosts reactions)
 
 
+addFuel : Reactions -> Int -> Maybe (Dict String Int) -> Maybe (Dict String Int)
+addFuel reactions amount =
+    Maybe.andThen
+        (Dict.insert "FUEL" amount >> expandCosts reactions)
+
+
 findCostOfFuel : Reactions -> Maybe Int
 findCostOfFuel reactions =
     accountForFuel reactions
@@ -90,32 +96,33 @@ findCostOfFuel reactions =
 
 
 howMuchCanIProduce : Reactions -> Int -> Int
-howMuchCanIProduce reactions ore =
+howMuchCanIProduce reactions initialOre =
     let
         costOfFuel =
-            findCostOfFuel reactions |> Maybe.withDefault 1
+            findCostOfFuel reactions |> Maybe.withDefault initialOre
 
-        initialOutlay =
-            ore // costOfFuel
+        howMuch ore costs =
+            let
+                outlay =
+                    ore // costOfFuel
 
-        countdown count costs =
-            if (Dict.get "ORE" costs |> Maybe.withDefault 0) > ore then
-                count
+                expansion =
+                    addFuel reactions outlay costs
+
+                spentOre =
+                    Maybe.andThen (Dict.get "ORE") expansion
+                        |> Maybe.withDefault initialOre
+
+                remainingOre =
+                    initialOre - spentOre
+            in
+            if outlay == 0 then
+                outlay
 
             else
-                let
-                    nextExpansion =
-                        Dict.insert "FUEL" 1 costs
-                            |> expandCosts reactions
-                            |> Maybe.withDefault Dict.empty
-                in
-                countdown (count + 1) nextExpansion
+                outlay + howMuch remainingOre expansion
     in
-    expandCost reactions ( "FUEL", initialOutlay )
-        |> Maybe.map Dict.fromList
-        |> Maybe.andThen (expandCosts reactions)
-        |> Maybe.withDefault Dict.empty
-        |> countdown (initialOutlay - 1)
+    howMuch initialOre (Just Dict.empty)
 
 
 
