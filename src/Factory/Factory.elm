@@ -101,10 +101,13 @@ howMuchCanIProduce reactions initialOre =
         costOfFuel =
             findCostOfFuel reactions |> Maybe.withDefault initialOre
 
+        costOfFuelAsFloat =
+            toFloat costOfFuel
+
         howMuch ore costs =
             let
                 outlay =
-                    ore // costOfFuel
+                    floor (toFloat ore / costOfFuelAsFloat)
 
                 expansion =
                     addFuel reactions (max 1 outlay) costs
