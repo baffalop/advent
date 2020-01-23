@@ -76,9 +76,9 @@ addCosts ledger costs =
         costs
 
 
-accountForFuel : Reactions -> Maybe (Dict String Int)
-accountForFuel reactions =
-    expandCost reactions ( "FUEL", 1 )
+accountForFuel : Reactions -> Int -> Maybe (Dict String Int)
+accountForFuel reactions amount =
+    expandCost reactions ( "FUEL", amount )
         |> Maybe.map Dict.fromList
         |> Maybe.andThen (expandCosts reactions)
 
@@ -89,9 +89,9 @@ addFuel reactions amount =
         (Dict.insert "FUEL" amount >> expandCosts reactions)
 
 
-findCostOfFuel : Reactions -> Maybe Int
-findCostOfFuel reactions =
-    accountForFuel reactions
+findCostOfFuel : Reactions -> Int -> Maybe Int
+findCostOfFuel reactions amount =
+    accountForFuel reactions amount
         |> Maybe.andThen (Dict.get "ORE")
 
 
@@ -99,33 +99,34 @@ howMuchCanIProduce : Reactions -> Int -> Int
 howMuchCanIProduce reactions initialOre =
     let
         costOfFuel =
-            findCostOfFuel reactions |> Maybe.withDefault initialOre
+            findCostOfFuel reactions 1
+                |> Maybe.withDefault initialOre
 
         costOfFuelAsFloat =
             toFloat costOfFuel
 
-        howMuch ore costs =
+        howMuch ore outlaySoFar =
             let
-                outlay =
-                    floor (toFloat ore / costOfFuelAsFloat)
+                thisOutlay =
+                    floor (toFloat ore / costOfFuelAsFloat) |> max 0
 
-                expansion =
-                    addFuel reactions (max 1 outlay) costs
+                outlay =
+                    outlaySoFar + thisOutlay
 
                 spentOre =
-                    Maybe.andThen (Dict.get "ORE") expansion
+                    findCostOfFuel reactions outlay
                         |> Maybe.withDefault (initialOre + 1)
 
                 remainingOre =
                     initialOre - spentOre
             in
-            if remainingOre < 0 then
-                0
+            if thisOutlay < 1 then
+                outlaySoFar
 
             else
-                outlay + howMuch remainingOre expansion
+                howMuch remainingOre outlay
     in
-    howMuch initialOre (Just Dict.empty)
+    howMuch initialOre 0
 
 
 
