@@ -108,7 +108,7 @@ howMuchCanIProduce reactions initialOre =
         howMuch ore outlaySoFar =
             let
                 thisOutlay =
-                    floor (toFloat ore / costOfFuelAsFloat) |> max 0
+                    floor (toFloat ore / costOfFuelAsFloat) |> max 1
 
                 outlay =
                     outlaySoFar + thisOutlay
@@ -120,7 +120,7 @@ howMuchCanIProduce reactions initialOre =
                 remainingOre =
                     initialOre - spentOre
             in
-            if thisOutlay < 1 then
+            if remainingOre < 0 then
                 outlaySoFar
 
             else
