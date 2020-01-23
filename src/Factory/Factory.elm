@@ -1,4 +1,4 @@
-module Factory.Factory exposing (..)
+module Factory.Factory exposing (Reactions, findCostOfFuel, howMuchCanIProduce, parse)
 
 import Dict exposing (Dict)
 import Parser exposing ((|.), (|=), Parser)
@@ -96,29 +96,29 @@ findCostOfFuel reactions amount =
 
 
 howMuchCanIProduce : Reactions -> Int -> Int
-howMuchCanIProduce reactions initialOre =
+howMuchCanIProduce reactions ore =
     let
         costOfFuel =
             findCostOfFuel reactions 1
-                |> Maybe.withDefault initialOre
+                |> Maybe.withDefault ore
 
         costOfFuelAsFloat =
             toFloat costOfFuel
 
-        howMuch ore outlaySoFar =
+        howMuch currentOre outlaySoFar =
             let
                 thisOutlay =
-                    floor (toFloat ore / costOfFuelAsFloat) |> max 1
+                    floor (toFloat currentOre / costOfFuelAsFloat) |> max 1
 
                 outlay =
                     outlaySoFar + thisOutlay
 
                 spentOre =
                     findCostOfFuel reactions outlay
-                        |> Maybe.withDefault (initialOre + 1)
+                        |> Maybe.withDefault (currentOre + 1)
 
                 remainingOre =
-                    initialOre - spentOre
+                    ore - spentOre
             in
             if remainingOre < 0 then
                 outlaySoFar
@@ -126,7 +126,7 @@ howMuchCanIProduce reactions initialOre =
             else
                 howMuch remainingOre outlay
     in
-    howMuch initialOre 0
+    howMuch ore 0
 
 
 
