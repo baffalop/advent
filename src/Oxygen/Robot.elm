@@ -1,4 +1,17 @@
-module Oxygen.Robot exposing (Direction(..), Element(..), Map, Robot, init, move, navigate, print)
+module Oxygen.Robot exposing
+    ( Direction(..)
+    , Element(..)
+    , Feedback(..)
+    , Map
+    , Robot
+    , applyDirection
+    , applyMove
+    , init
+    , makeMove
+    , move
+    , navigate
+    , print
+    )
 
 import Dict exposing (Dict)
 import Intcodes.Intcodes as IC
@@ -36,7 +49,9 @@ type alias Map =
 
 
 type alias Robot =
-    ( IC.OpResult, Map )
+    { state : IC.OpResult
+    , map : Map
+    }
 
 
 encodeDirection : Direction -> Int
@@ -101,18 +116,24 @@ print { droidLocation, surroundings } =
 
 init : Robot
 init =
-    ( IC.run program []
-    , { droidLocation = ( 0, 0 )
-      , surroundings = Dict.singleton ( 0, 0 ) Space
-      }
-    )
+    { state = IC.run program []
+    , map =
+        { droidLocation = ( 0, 0 )
+        , surroundings = Dict.singleton ( 0, 0 ) Space
+        }
+    }
 
 
 move : Direction -> Robot -> Result String Robot
-move direction ( currentState, map ) =
+move direction robot =
+    makeMove direction robot |> applyMove direction robot
+
+
+makeMove : Direction -> Robot -> ( Result String IC.OpResult, Result String Feedback )
+makeMove direction { state, map } =
     let
         ( output, newState ) =
-            IC.continue currentState [ encodeDirection direction ]
+            IC.continue state [ encodeDirection direction ]
                 |> IC.consumeOutput
 
         stateResult =
@@ -136,8 +157,13 @@ move direction ( currentState, map ) =
                 _ ->
                     Err "Too much output"
     in
+    ( stateResult, feedbackResult )
+
+
+applyMove : Direction -> Robot -> ( Result String IC.OpResult, Result String Feedback ) -> Result String Robot
+applyMove direction { map } ( stateResult, feedbackResult ) =
     Result.map2
-        (\state feedback -> ( state, updateMap map direction feedback ))
+        (\s feedback -> { state = s, map = updateMap map direction feedback })
         stateResult
         feedbackResult
 
@@ -195,5 +221,5 @@ navigate moves =
         (Ok init)
         moves
         |> Result.withDefault init
-        |> Tuple.second
+        |> .map
         |> print
