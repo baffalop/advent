@@ -1,4 +1,4 @@
-module Oxygen.Robot exposing (Direction(..), Element, Map, init, move, navigate, print)
+module Oxygen.Robot exposing (Direction(..), Element(..), Map, Robot, init, move, navigate, print)
 
 import Dict exposing (Dict)
 import Intcodes.Intcodes as IC
