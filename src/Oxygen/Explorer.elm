@@ -1,7 +1,8 @@
-module Oxygen.Explorer exposing (explore)
+module Oxygen.Explorer exposing (countStepsToOxygen, explore)
 
 import Dict exposing (Dict)
 import Oxygen.Robot as Robot exposing (Direction(..), Robot)
+import Set exposing (Set)
 import Utils exposing (flip)
 
 
@@ -150,23 +151,75 @@ adjacentsAreKnown { droidLocation, surroundings } =
     List.length adjacents == List.length (Utils.filterMaybes adjacents)
 
 
-exploreStep : Result String (Explorer Robot) -> Result String Robot.Map
-exploreStep =
+exploreStep : Explorer Robot -> Result String (Explorer Robot)
+exploreStep explorer =
+    case explorer.step of
+        ProbeLeft ->
+            probeLeft explorer
+
+        ProbeForward ->
+            probeForward explorer
+
+
+exploreAll : Result String (Explorer Robot) -> Result String Robot.Map
+exploreAll =
     Result.andThen
         (\explorer ->
             if explorer.map.droidLocation == ( 0, 0 ) && adjacentsAreKnown explorer.map then
                 Ok explorer.map
 
             else
-                case explorer.step of
-                    ProbeLeft ->
-                        exploreStep (probeLeft explorer)
-
-                    ProbeForward ->
-                        exploreStep (probeForward explorer)
+                exploreAll (exploreStep explorer)
         )
 
 
 explore : Result String Robot.Map
 explore =
-    exploreStep (Ok init)
+    exploreAll (Ok init)
+
+
+
+-- FIND OXYGEN
+
+
+hasFoundOxygen : Robot.Map -> Bool
+hasFoundOxygen { droidLocation, surroundings } =
+    Dict.get droidLocation surroundings == Just Robot.Oxygen
+
+
+trackStepsToOxygen : Set ( Int, Int ) -> Result String (Explorer Robot) -> Result String Int
+trackStepsToOxygen steps explorerResult =
+    case explorerResult of
+        Err msg ->
+            Err msg
+
+        Ok explorer ->
+            if hasFoundOxygen explorer.map then
+                Ok (Set.size steps)
+
+            else
+                let
+                    nextStep =
+                        exploreStep explorer
+
+                    currentLocation =
+                        explorer.map.droidLocation
+
+                    nextLocation =
+                        Result.withDefault init nextStep
+                            |> .map
+                            |> .droidLocation
+
+                    nextSteps =
+                        if nextLocation /= currentLocation && Set.member nextLocation steps then
+                            Set.remove currentLocation steps
+
+                        else
+                            Set.insert nextLocation steps
+                in
+                trackStepsToOxygen nextSteps nextStep
+
+
+countStepsToOxygen : Result String Int
+countStepsToOxygen =
+    trackStepsToOxygen Set.empty (Ok init)
