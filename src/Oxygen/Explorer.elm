@@ -142,21 +142,12 @@ probeForward explorer =
 adjacentsAreKnown : Robot.Map -> Bool
 adjacentsAreKnown { droidLocation, surroundings } =
     let
-        getDir direction =
-            Robot.applyDirection droidLocation direction
-                |> flip Dict.get surroundings
+        adjacents =
+            List.map
+                (Robot.applyDirection droidLocation >> flip Dict.get surroundings)
+                [ North, East, South, West ]
     in
-    case ( getDir North, getDir East ) of
-        ( Just _, Just _ ) ->
-            case ( getDir South, getDir West ) of
-                ( Just _, Just _ ) ->
-                    True
-
-                _ ->
-                    False
-
-        _ ->
-            False
+    List.length adjacents == List.length (Utils.filterMaybes adjacents)
 
 
 exploreStep : Result String (Explorer Robot) -> Result String Robot.Map
