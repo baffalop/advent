@@ -7,6 +7,7 @@ module Oxygen.Robot exposing
     , applyDirection
     , applyMove
     , init
+    , initMap
     , makeMove
     , move
     , navigate
@@ -117,10 +118,14 @@ print { droidLocation, surroundings } =
 init : Robot
 init =
     { state = IC.run program []
-    , map =
-        { droidLocation = ( 0, 0 )
-        , surroundings = Dict.singleton ( 0, 0 ) Space
-        }
+    , map = initMap
+    }
+
+
+initMap : Map
+initMap =
+    { droidLocation = ( 0, 0 )
+    , surroundings = Dict.singleton ( 0, 0 ) Space
     }
 
 
