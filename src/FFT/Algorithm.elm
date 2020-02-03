@@ -1,10 +1,6 @@
-module FFT.Algorithm exposing (calculateNPhases, calculatePhase, splitNumber)
+module FFT.Algorithm exposing (calculateElement, calculateNPhases, calculatePhase, splitNumber)
 
 import Utils
-
-
-basePattern =
-    [ 0, 1, 0, -1 ]
 
 
 splitNumber : String -> List Int
@@ -14,22 +10,43 @@ splitNumber inputString =
         |> Utils.filterMaybes
 
 
-repeatEach : Int -> List Int -> List Int
-repeatEach count =
-    List.concatMap (List.repeat count)
+sumEvery : Int -> Int -> List Int -> Int
+sumEvery takeCount skipCount input =
+    case input of
+        [] ->
+            0
+
+        _ ->
+            let
+                sum =
+                    List.take takeCount input
+                        |> List.sum
+
+                rest =
+                    List.drop (takeCount + skipCount) input
+            in
+            sum + sumEvery takeCount skipCount rest
 
 
-repeatToMatch : Int -> List Int -> List Int
-repeatToMatch count input =
+sumPositives : List Int -> Int -> Int
+sumPositives input index =
     let
-        targetLength =
-            ceiling (toFloat count / toFloat (List.length input))
+        preparedList =
+            List.drop (index - 1) input
     in
-    List.repeat targetLength input
-        |> List.concat
-        |> List.take (count + 1)
-        |> List.tail
-        |> Maybe.withDefault []
+    sumEvery index (index * 3) preparedList
+
+
+sumNegatives : List Int -> Int -> Int
+sumNegatives input index =
+    let
+        skipCount =
+            index * 3
+
+        preparedList =
+            List.drop (skipCount - 1) input
+    in
+    sumEvery index skipCount preparedList
 
 
 lastDigit : Int -> Int
@@ -37,20 +54,9 @@ lastDigit =
     abs >> modBy 10
 
 
-applyPattern : List Int -> List Int -> List Int
-applyPattern input pattern =
-    let
-        repeatedPattern =
-            repeatToMatch (List.length input) pattern
-    in
-    List.map2 (*) repeatedPattern input
-
-
 calculateElement : List Int -> Int -> Int
 calculateElement input index =
-    repeatEach index basePattern
-        |> applyPattern input
-        |> List.sum
+    (sumPositives input index - sumNegatives input index)
         |> lastDigit
 
 
