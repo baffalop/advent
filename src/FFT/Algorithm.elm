@@ -1,4 +1,4 @@
-module FFT.Algorithm exposing (calculateElement, calculateNPhases, calculatePhase, splitNumber)
+module FFT.Algorithm exposing (calculateElement, calculateNPhases, calculatePhase, getListWithOffset, getMessageOffset, splitNumber)
 
 import Utils
 
@@ -73,3 +73,26 @@ calculateNPhases n input =
 
     else
         calculateNPhases (n - 1) (calculatePhase input)
+
+
+
+-- OFFSETS
+
+
+getMessageOffset : List Int -> Int
+getMessageOffset input =
+    List.take 7 input
+        |> List.map String.fromInt
+        |> List.foldr (++) ""
+        |> String.toInt
+        |> Maybe.withDefault 0
+
+
+getListWithOffset : Int -> List Int -> List Int
+getListWithOffset offset input =
+    let
+        normalisedOffset =
+            modBy (List.length input) offset
+    in
+    List.drop normalisedOffset input
+        |> List.take 8
