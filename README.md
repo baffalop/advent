@@ -25,3 +25,4 @@ These modules are meant to be loaded into the Elm REPL. I should document which 
     - For part 2, `elm make src/Arcade/Main.elm` makes the browser-based game
 - **Day 14: Space Stoichiometry** `src/Factory`
 - **Day 15: Oxygen System** `src/Oxygen`
+- **Day 16: Flawed Frequency Transmission** `src/FFT`
